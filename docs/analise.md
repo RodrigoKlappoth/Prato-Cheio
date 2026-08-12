@@ -105,4 +105,4 @@ Regras que ninguém enuncia — estão no hábito de quem opera. Aqui viram fras
 - **Riscos e limitações:**
 
 ## Uso de IA
-Usada Ia para consulta e para criação das estruturas de tabelas
+O que geramos com IA, o que verificamos e o que alteramos.
