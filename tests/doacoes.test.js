@@ -106,4 +106,14 @@ describe('aceitar uma doação', () => {
     expect(res.status).toBe(400);
     expect(res.body.erro).toMatch(/não encontrada/);
   });
+
+  it('recusa aceitar sem informar a ONG', async () => {
+    const doacao = await publicar();
+
+    const res = await aceitar(doacao.id);
+
+    expect(res.status).toBe(400);
+    expect(res.body.erro).toMatch(/identificar/);
+    expect((await listarDisponiveis()).body).toMatchObject([{ id: doacao.id, status: 'disponivel' }]);
+  });
 });

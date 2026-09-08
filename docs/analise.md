@@ -162,7 +162,7 @@ Cada critério aponta para o teste que o prova. Nome do teste entre aspas = exis
   **Dado** uma doação disponível,
   **Quando** chega um aceite sem o nome da ONG,
   **Então** o sistema responde `400` e a doação continua `disponivel`.
-  → *(a escrever)* — a regra já existe em `src/doacoes.js`, mas nenhum teste a prova; sem teste, ela pode sumir numa refatoração
+  → "recusa aceitar sem informar a ONG" — escrever este teste revelou que a rota em `src/app.js` preenchia `"ONG"` como nome padrão quando o campo vinha ausente, então a regra de `src/doacoes.js` nunca era alcançada; o padrão foi removido e o teste passou a proteger a regra
 
 ### H-03 — Doação vencida não circula (RN-03) — pendente
 
@@ -195,6 +195,7 @@ Cada critério aponta para o teste que o prova. Nome do teste entre aspas = exis
 | Risco | Probabilidade | Impacto | Mitigação |
 |---|---|---|---|
 | A vigilância sanitária exigir registro de conservação e horário de preparo que a primeira versão não coleta (decisão CONF-01) | Média | Alto | Levar o critério de CONF-01 a uma conversa com a vigilância antes da Unidade 3; campos opcionais já previstos no modelo |
+| Uma ONG aceita a doação e não retira. Pela RN-02 a doação some da lista das outras no instante do aceite e não existe cancelamento (INC-05): a comida fica reservada para quem não vem e vence — exatamente o que OBJ-02 mede | Média | Alto | **U1, sem código:** combinado com a Marta — a ONG que desistir avisa no grupo e o doador publica de novo. **U2, história no backlog:** "ONG cancela o aceite" e liberação automática — aceite sem retirada confirmada em 4 h (o limite de OBJ-01) volta para `disponivel`; para isso o modelo passa a registrar `aceita_em` e `retirada_em`, os mesmos campos que hoje faltam para medir OBJ-01 |
 
 ## Hipótese e experimento
 
@@ -237,6 +238,7 @@ O que geramos com IA, o que verificamos e o que alteramos.
 
 | Trecho | Ferramenta | O que fizemos depois |
 |---|---|---|
-| Rascunho das histórias H-01 a H-03, dos critérios de aceite e do protocolo do experimento | Claude (Anthropic) | Verificamos toda a informação, alteramos alguns pontos das histórias, excluimos alguns critérios
+| Rascunho das histórias H-01 a H-03, dos critérios de aceite e do protocolo do experimento | Claude (Anthropic) | Verificamos toda a informação, alteramos alguns pontos das histórias, excluimos alguns critérios |
+| Teste do CA-02.5 ("recusa aceitar sem informar a ONG"), remoção do nome padrão `"ONG"` na rota de aceite, segundo risco da tabela e atualização do README | Claude Code (Anthropic) | Revisamos o teste novo e a linha alterada na rota, rodamos `npm test` (8 passando) e ajustamos a redação do segundo risco |
 
 
