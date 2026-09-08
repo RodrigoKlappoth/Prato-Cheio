@@ -1,4 +1,4 @@
-# Prato Cheio — [nome do grupo]
+# Prato Cheio — Rodrigo e Henrique
 
 Projeto da disciplina **Análise, Projeto e Desenvolvimento Ágil**.
 Conecta doadores de alimentos excedentes a ONGs, antes que a comida se perca.
@@ -51,11 +51,12 @@ O `src/db.js` foi desenhado para isso: ele expõe `query()` devolvendo `{ rows }
 src/server.js        entrypoint (npm start)
 src/db.js            conexão e schema do banco (pronto)
 src/app.js           rotas da API
-src/doacoes.js       regras de negócio      <- implementar (U1)
-src/repositorio.js   acesso ao banco (SQL)  <- implementar (U1)
+src/doacoes.js       regras de negócio      (feito na U1 — walking skeleton)
+src/repositorio.js   acesso ao banco (SQL)  (feito na U1 — walking skeleton)
 public/index.html    interface (funciona no celular)
 tests/               testes automatizados
 docs/analise.md      documento de análise   (Trabalho 1)
+docs/experimento-h1.md protocolo do experimento H1 (Trabalho 1)
 docs/projeto.md      documento de projeto   (Trabalho 2)
 docs/adr/            decisões arquiteturais (Trabalho 2)
 docs/validacao.md    validação e testes     (Trabalho 3)
@@ -81,13 +82,21 @@ peça a revisão de **outro integrante**. Só então faça o merge.
 
 ## O que já está pronto e o que falta
 
-Pronto: estrutura do projeto, interface básica, rota de saúde, **conexão com o banco e o schema** (`src/db.js`), CI configurado e um teste passando (prova que a aplicação sobe).
-
-Falta (Trabalho 1 — walking skeleton): implementar `src/doacoes.js` (regras) e
-`src/repositorio.js` (SQL) para que a história zero funcione ponta a ponta —
+**Pronto (Trabalho 1 — walking skeleton):** a história zero funciona ponta a ponta —
 **um doador publica uma doação → uma ONG vê a doação → a ONG a aceita e ela sai da lista.**
-Os critérios de aceite estão em `tests/doacoes.test.js` como `it.todo`: troque cada um
-por um teste de verdade conforme implementa.
+Além dela: estrutura do projeto, interface básica, rota de saúde, conexão com o banco e o schema (`src/db.js`) e CI configurado.
+
+A fatia atravessa todas as camadas de propósito — é isso que faz dela um *walking skeleton*:
+
+| Passo da história | Tela (`public/index.html`) | Rota (`src/app.js`) | Regra (`src/doacoes.js`) | SQL (`src/repositorio.js`) |
+|---|---|---|---|---|
+| Doador publica | botão **Publicar** | `POST /api/doacoes` | `criarDoacao` — exige tipo, quantidade e validade (RN-01) | `inserir` |
+| ONG vê a lista | lista **Doações disponíveis** | `GET /api/doacoes` | `listarDisponiveis` | `listarDisponiveis` — só `status = 'disponivel'` |
+| ONG aceita | botão **Aceitar** | `POST /api/doacoes/:id/aceitar` | `aceitar` — exige o nome da ONG e explica por que recusou | `aceitar` — `UPDATE … WHERE status = 'disponivel'` (RN-02, em uma única instrução) |
+
+Cada critério de aceite de H-01 e H-02 em `docs/analise.md` aponta para um teste em `tests/doacoes.test.js`: são 8 testes, todos passando. Erro de regra vira `Error` em `src/doacoes.js` e resposta `400` em `src/app.js`; quem aceitou primeiro é decidido pelo próprio banco, sem janela para duas ONGs levarem a mesma doação.
+
+**Falta (backlog, nesta ordem):** H-03 — doação com prazo vencido não circula (RN-03); identificação de doador e ONG; cancelamento de aceite / no-show; notificação às ONGs. Detalhes em "Fora do escopo" e "Riscos" de `docs/analise.md`.
 
 ## Uso de IA
 
