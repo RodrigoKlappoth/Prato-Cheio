@@ -3,75 +3,117 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f1e7">
   <title>Prato Cheio</title>
-  <style>
-    body { font-family: system-ui, sans-serif; margin: 0; padding: 1rem; max-width: 40rem; }
-    h1 { font-size: 1.3rem; }
-    fieldset { border: 1px solid #ccc; border-radius: .5rem; margin-bottom: 1rem; }
-    label { display: block; margin: .5rem 0 .2rem; font-size: .9rem; }
-    input, button { font-size: 1rem; padding: .6rem; width: 100%; box-sizing: border-box; }
-    button { margin-top: .8rem; cursor: pointer; }
-    li { border: 1px solid #ddd; border-radius: .5rem; padding: .6rem; margin-bottom: .5rem; list-style: none; }
-    ul { padding: 0; }
-  </style>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%231f6b45'/%3E%3Ccircle cx='16' cy='16' r='10.5' fill='%23f6f1e7'/%3E%3Cpath d='M12.5 19.5c0-5 3.2-8.3 8-8.8-.4 4.9-3.4 8.2-8 8.8z' fill='%23c4471f'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Young+Serif&display=swap">
+  <link rel="stylesheet" href="estilo.css">
+  <script src="tela.js" defer></script>
 </head>
 <body>
-  <h1>Prato Cheio</h1>
+  <header>
+    <div class="topo">
+      <p class="marca">
+        <svg class="marca-icone" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+          <circle cx="16" cy="16" r="15" fill="#1f6b45"/>
+          <circle cx="16" cy="16" r="10.5" fill="#f6f1e7"/>
+          <circle cx="16" cy="16" r="7.6" fill="none" stroke="#1f6b45" stroke-width="1.2" opacity=".3"/>
+          <path d="M12.5 19.5c0-5 3.2-8.3 8-8.8-.4 4.9-3.4 8.2-8 8.8z" fill="#c4471f"/>
+          <path d="M12.5 19.5l4.6-4.6" stroke="#f6f1e7" stroke-width="1.1" stroke-linecap="round"/>
+        </svg>
+        Prato Cheio
+      </p>
+      <div class="conta" id="conta" hidden>
+        <span class="conta-papel" id="conta-papel"></span>
+        <span class="conta-nome" id="conta-nome"></span>
+        <button type="button" class="botao-texto" id="sair">Sair</button>
+      </div>
+    </div>
+    <div class="toalha" aria-hidden="true"></div>
+  </header>
 
-  <fieldset>
-    <legend>Publicar doação</legend>
-    <label for="tipo">Tipo de alimento</label>
-    <input id="tipo" placeholder="Ex.: sopa, pão, frutas">
-    <label for="quantidade">Quantidade</label>
-    <input id="quantidade" placeholder="Ex.: 10 porções">
-    <label for="validade">Validade / retirar até</label>
-    <input id="validade" type="date">
-    <button id="publicar">Publicar</button>
-  </fieldset>
+  <main>
+    <p class="carregando" id="tela-carregando">Carregando…</p>
 
-  <h2>Doações disponíveis</h2>
-  <ul id="lista"></ul>
+    <section id="tela-entrar" hidden>
+      <h1>Comida boa não vai para o lixo.</h1>
+      <p class="apoio">Doadores publicam o que sobrou. As ONGs da rede aceitam e vão buscar.</p>
 
-  <script>
-    async function carregar() {
-      const res = await fetch('/api/doacoes');
-      const doacoes = await res.json();
-      const lista = document.getElementById('lista');
-      lista.innerHTML = doacoes.length
-        ? ''
-        : '<li>Nenhuma doação disponível.</li>';
-      for (const d of doacoes) {
-        const li = document.createElement('li');
-        li.textContent = `${d.tipo} — ${d.quantidade} (até ${d.validade}) `;
-        const botao = document.createElement('button');
-        botao.textContent = 'Aceitar';
-        botao.onclick = async () => {
-          await fetch(`/api/doacoes/${d.id}/aceitar`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ong: 'Minha ONG' })
-          });
-          carregar();
-        };
-        li.appendChild(botao);
-        lista.appendChild(li);
-      }
-    }
+      <form class="cartao" id="form-entrar" novalidate>
+        <h2>Entrar</h2>
+        <label for="entrar-email">E-mail</label>
+        <input id="entrar-email" type="email" autocomplete="email" inputmode="email">
+        <label for="entrar-senha">Senha</label>
+        <div class="campo-senha">
+          <input id="entrar-senha" type="password" autocomplete="current-password">
+          <button type="button" class="botao-texto" data-mostrar-senha="entrar-senha" aria-pressed="false">Mostrar</button>
+        </div>
+        <p class="erro" role="alert" hidden></p>
+        <button type="submit" class="botao botao-cheio">Entrar</button>
+        <button type="button" class="botao-texto trocar" id="ir-para-cadastro">Sou doador e ainda não tenho conta</button>
+      </form>
 
-    document.getElementById('publicar').onclick = async () => {
-      await fetch('/api/doacoes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tipo: document.getElementById('tipo').value,
-          quantidade: document.getElementById('quantidade').value,
-          validade: document.getElementById('validade').value
-        })
-      });
-      carregar();
-    };
+      <form class="cartao" id="form-criar" novalidate hidden>
+        <h2>Criar conta de doador</h2>
+        <label for="criar-nome">Nome do estabelecimento</label>
+        <input id="criar-nome" autocomplete="organization" placeholder="Ex.: Padaria do Seu Paulo">
+        <label for="criar-email">E-mail</label>
+        <input id="criar-email" type="email" autocomplete="email" inputmode="email">
+        <label for="criar-senha">Senha</label>
+        <div class="campo-senha">
+          <input id="criar-senha" type="password" autocomplete="new-password" aria-describedby="dica-senha">
+          <button type="button" class="botao-texto" data-mostrar-senha="criar-senha" aria-pressed="false">Mostrar</button>
+        </div>
+        <p class="dica" id="dica-senha">Pelo menos 8 caracteres.</p>
+        <p class="erro" role="alert" hidden></p>
+        <button type="submit" class="botao botao-cheio">Criar conta e entrar</button>
+        <button type="button" class="botao-texto trocar" id="ir-para-entrada">Já tenho conta</button>
+      </form>
 
-    carregar();
-  </script>
+      <p class="nota">É uma ONG da rede? O acesso é criado pela coordenação.</p>
+    </section>
+
+    <section id="tela-doador" hidden>
+      <h1>Publicar doação</h1>
+      <p class="apoio">Três campos e pronto: as ONGs da rede veem na hora.</p>
+
+      <form class="cartao" id="form-doacao" novalidate>
+        <label for="tipo">O que sobrou?</label>
+        <input id="tipo" placeholder="Ex.: sopa, pão, frutas" autocomplete="off">
+        <label for="quantidade">Quantidade</label>
+        <input id="quantidade" placeholder="Ex.: 10 porções" autocomplete="off">
+        <label for="validade">Retirar até</label>
+        <div class="campo-data">
+          <input id="validade" type="date">
+          <button type="button" class="atalho" data-dias="0">Hoje</button>
+          <button type="button" class="atalho" data-dias="1">Amanhã</button>
+        </div>
+        <p class="erro" role="alert" hidden></p>
+        <button type="submit" class="botao botao-cheio">Publicar para as ONGs</button>
+      </form>
+
+      <div class="cartao comanda-publicada" id="confirmacao" hidden>
+        <span class="carimbo" aria-hidden="true">Publicada</span>
+        <h2 id="confirmacao-titulo" tabindex="-1">Doação publicada!</h2>
+        <p class="resumo" id="confirmacao-resumo"></p>
+        <p class="apoio">As ONGs da rede já podem ver e aceitar.</p>
+        <button type="button" class="botao botao-contorno" id="publicar-outra">Publicar outra doação</button>
+      </div>
+    </section>
+
+    <section id="tela-ong" hidden>
+      <div class="titulo-com-acao">
+        <h1>Doações disponíveis</h1>
+        <button type="button" class="botao botao-contorno botao-pequeno" id="atualizar">Atualizar</button>
+      </div>
+      <p class="apoio" id="contagem" aria-live="polite"></p>
+      <ul class="comandas" id="lista"></ul>
+    </section>
+  </main>
+
+  <div class="aviso" id="aviso" role="status" aria-live="polite" hidden></div>
+  <noscript><p class="nota">Ative o JavaScript para usar o Prato Cheio.</p></noscript>
 </body>
 </html>
