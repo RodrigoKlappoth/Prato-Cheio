@@ -7,8 +7,6 @@ node_modules/
 dados.sqlite
 dados.sqlite-journal
 
-# cliente do Prisma, gerado por npm install (prisma generate)
-src/generated/
 
 # artefatos temporários do vitest
 *.timestamp-*
