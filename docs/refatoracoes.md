@@ -15,7 +15,7 @@
 - **Evidência de que o comportamento se manteve:**
   - testes antes da mudança: 20 passando com SQLite em memória, rodados antes da troca. Esse estado intermediário não foi commitado; o último estado commitado com SQLite é o do PR #4, com 8 testes passando no CI.
   - testes depois da mudança: 20 passando com PostgreSQL em memória, criado pelas migrations do Prisma.
-  - link da execução do CI verde: *(preencher depois do push do Pull Request)*
+  - link da execução do CI verde: https://github.com/RodrigoKlappoth/Prato-Cheio/actions/runs/35877479680/job/107237047151?pr=5
 
 ## Refatoração 2 — (nome)
 
