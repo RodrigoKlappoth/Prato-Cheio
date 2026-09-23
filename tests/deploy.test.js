@@ -24,4 +24,10 @@ describe('o que a Vercel exige para rodar o sistema', () => {
   it('nenhum arquivo de src importa .ts, porque a Vercel troca .ts por .js no build', () => {
     expect(importsDeArquivosTs()).toEqual([]);
   });
+
+  it('a página inicial vai para o index.html, que a Vercel entrega como arquivo estático', () => {
+    const configuracao = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
+
+    expect(configuracao.rewrites).toContainEqual({ source: '/', destination: '/index.html' });
+  });
 });
