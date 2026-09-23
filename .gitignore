@@ -3,9 +3,12 @@ node_modules/
 .DS_Store
 .env
 
-# banco local de desenvolvimento (SQLite)
+# banco SQLite da Unidade 1, se ainda existir na sua máquina
 dados.sqlite
 dados.sqlite-journal
+
+# cliente do Prisma, gerado por npm install (prisma generate)
+src/generated/
 
 # artefatos temporários do vitest
 *.timestamp-*

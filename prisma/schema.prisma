@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Papel {
+  doador
+  ong
+}
+
+enum StatusDaDoacao {
+  disponivel
+  aceita
+}
+
+model Usuario {
+  id         Int      @id @default(autoincrement())
+  nome       String
+  email      String   @unique
+  senha_hash String
+  papel      Papel
+  criado_em  DateTime @default(now())
+
+  sessoes         Sessao[]
+  doacoes_doadas  Doacao[] @relation("DoacoesPublicadas")
+  doacoes_aceitas Doacao[] @relation("DoacoesAceitas")
+
+  @@map("usuarios")
+}
+
+model Sessao {
+  token      String   @id
+  usuario_id Int
+  expira_em  DateTime
+  usuario    Usuario  @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
+
+  @@map("sessoes")
+}
+
+model Doacao {
+  id            Int            @id @default(autoincrement())
+  tipo          String
+  quantidade    String
+  validade      String
+  status        StatusDaDoacao @default(disponivel)
+  ong           String?
+  criada_em     DateTime       @default(now())
+  doador_id     Int
+  ong_id        Int?
+  publicada_por Usuario        @relation("DoacoesPublicadas", fields: [doador_id], references: [id])
+  aceita_por    Usuario?       @relation("DoacoesAceitas", fields: [ong_id], references: [id])
+
+  @@map("doacoes")
+}
