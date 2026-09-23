@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';
 import { PrismaPGlite } from 'pglite-prisma-adapter';
-import { PrismaClient } from '../src/generated/prisma/client.ts';
+import { PrismaClient } from '@prisma/client';
 import { banco, usarBanco, encerrar } from '../src/db.js';
 
 const MIGRATIONS = new URL('../prisma/migrations/', import.meta.url);

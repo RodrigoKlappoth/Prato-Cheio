@@ -12,7 +12,7 @@ Conecta doadores de alimentos excedentes a ONGs, antes que a comida se perca.
 
 ## Como rodar
 
-Requisitos: **Node.js 22.18 ou superior** e um banco **PostgreSQL no Neon** (o plano gratuito basta).
+Requisitos: **Node.js 22.13 ou superior** e um banco **PostgreSQL no Neon** (o plano gratuito basta).
 
 > Esta é a **stack preferencial** da disciplina. Se o seu grupo optar por outra, registre o ADR de justificativa e garanta os mesmos compromissos: repositório público com CI verde, rota de saúde, testes por um comando, os três comandos documentados aqui no README e banco relacional migrado para PostgreSQL na Unidade 3.
 
@@ -64,7 +64,6 @@ src/usuarios.js        regras de conta: cadastro, login, sessão e papéis (H-04
 src/regras.js          peças comuns às regras: erro com status e campos obrigatórios
 src/repositorio.js     acesso ao banco (Prisma Client)
 src/db.js              conexão com o PostgreSQL
-src/generated/         cliente do Prisma, gerado pelo npm install (fora do git)
 prisma/schema.prisma   modelo das tabelas
 prisma/migrations/     SQL de cada mudança no banco
 prisma.config.js       configuração do Prisma (lê o .env)
@@ -119,10 +118,10 @@ A fatia atravessa todas as camadas de propósito — é isso que faz dela um *wa
 | ONG vê a lista | lista **Doações disponíveis** | `GET /api/doacoes` | `listarDisponiveis` — exige login | `listarDisponiveis` — só `disponivel`, com o nome do doador |
 | ONG aceita | botão **Aceitar doação** | `POST /api/doacoes/:id/aceitar` | `aceitar` — só ONG; o nome vem da conta; explica por que recusou | `aceitar` — altera só se ainda estiver `disponivel`, numa única instrução (RN-02) |
 
-Cada critério de aceite de H-01, H-02 e H-04 em `docs/analise.md` aponta para um teste: são 20 testes, todos passando, 8 em `tests/doacoes.test.js` e 12 em `tests/contas.test.js`. Erro de regra vira resposta `400`, falta de login vira `401` e papel errado vira `403`.
+Cada critério de aceite de H-01, H-02 e H-04 em `docs/analise.md` aponta para um teste. São 22 testes, todos passando: 8 em `tests/doacoes.test.js`, 12 em `tests/contas.test.js` e 2 em `tests/deploy.test.js`, que conferem o que a Vercel exige. Erro de regra vira resposta `400`, falta de login vira `401` e papel errado vira `403`.
 
 **Falta (backlog):**
-- Deploy na Vercel ([ADR 0002](docs/adr/0002-hospedagem-na-vercel.md)): adaptar `src/server.js` e escolher a região de São Paulo.
+- Deploy na Vercel ([ADR 0002](docs/adr/0002-hospedagem-na-vercel.md)): o primeiro deploy caiu com erro 500 e a causa foi corrigida; falta publicar a correção e conferir o endereço público.
 - H-03, doação com prazo vencido não circula (RN-03), depois de decidirmos a D1 de [`docs/decisoes-de-projeto.md`](docs/decisoes-de-projeto.md).
 - Doação aceita e não retirada, depois de decidirmos a D2.
 - Aviso às ONGs quando surge uma doação, depois de decidirmos a D3.

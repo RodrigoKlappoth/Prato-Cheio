@@ -76,3 +76,5 @@ export function criarApp() {
 
   return app;
 }
+
+export default criarApp();
