@@ -9,7 +9,7 @@ A atividade da Unidade 2, com as três decisões que a análise deixou em aberto
 | # | Decisão | Alternativas | Requisito/risco da Análise que a motiva | Situação |
 |---|---|---|---|---|
 | [ADR 0001](adr/0001-banco-postgresql-no-neon.md) | Onde os dados ficam guardados | Neon · Supabase | Problema central; rastreabilidade para a vigilância sanitária; OBJ-01 a OBJ-03 | Tomada: Neon |
-| [ADR 0002](adr/0002-hospedagem-na-vercel.md) | Onde o sistema roda | Vercel · Render | CONF-01; hipótese H1; problema central | Tomada: Vercel, com deploy pendente |
+| [ADR 0002](adr/0002-hospedagem-na-vercel.md) | Onde o sistema roda | Vercel · Render | CONF-01; hipótese H1; problema central | Tomada e no ar: Vercel, em [prato-cheio-sigma.vercel.app](https://prato-cheio-sigma.vercel.app) |
 | [ADR 0003](adr/0003-identificacao-por-email-e-senha.md) | Como doador e ONG se identificam | E-mail e senha · link de acesso pessoal | Decisão de análise (sem autenticação); RN-02; CONF-01 | Tomada e implementada: e-mail e senha |
 | [ADR 0004](adr/0004-prisma-e-migrations.md) | Como o banco evolui | Prisma · SQL versionado à mão | Riscos que pedem campos novos; restrição da disciplina | Tomada e implementada: Prisma |
 | D1 | Como o sistema sabe que o prazo de retirada venceu | *Agora* como parâmetro · relógio do servidor | RN-03; H-03 | Em aberto |

@@ -106,6 +106,7 @@ Mudou o banco? A pasta nova em `prisma/migrations/` entra no mesmo Pull Request,
 **Pronto na Unidade 2:**
 - **Identificação por e-mail e senha** (H-04, [ADR 0003](docs/adr/0003-identificacao-por-email-e-senha.md)). O doador cria a conta na tela, a conta de ONG é criada pela coordenação, e cada doação registra quem publicou e quem aceitou.
 - **Banco PostgreSQL no Neon, com Prisma** ([ADR 0001](docs/adr/0001-banco-postgresql-no-neon.md), [ADR 0004](docs/adr/0004-prisma-e-migrations.md)).
+- **No ar na Vercel:** [prato-cheio-sigma.vercel.app](https://prato-cheio-sigma.vercel.app) ([ADR 0002](docs/adr/0002-hospedagem-na-vercel.md)). Cada merge na `main` publica uma versão nova.
 - **Tela nova, pensada para o celular.** Tem entrar e criar conta, publicar com confirmação e erro visível, e a lista de doações da ONG com o botão de aceitar.
 - **Decisões de projeto** em [`docs/decisoes-de-projeto.md`](docs/decisoes-de-projeto.md): três decisões que o caso exige, cada uma com duas alternativas, a tabela de trade-offs da D3 e a justificativa ligada à nossa análise. O resumo de todas as decisões, inclusive as que já tomamos, está em [`docs/projeto.md`](docs/projeto.md).
 
@@ -121,7 +122,7 @@ A fatia atravessa todas as camadas de propósito — é isso que faz dela um *wa
 Cada critério de aceite de H-01, H-02 e H-04 em `docs/analise.md` aponta para um teste. São 23 testes, todos passando: 8 em `tests/doacoes.test.js`, 12 em `tests/contas.test.js` e 3 em `tests/deploy.test.js`, que conferem o que a Vercel exige. Erro de regra vira resposta `400`, falta de login vira `401` e papel errado vira `403`.
 
 **Falta (backlog):**
-- Deploy na Vercel ([ADR 0002](docs/adr/0002-hospedagem-na-vercel.md)): a API já responde em produção; a página inicial dava "Cannot GET /" e foi corrigida, falta publicar a correção e conferir o endereço público.
+- Trocar a região da função da Vercel para São Paulo (`gru1`), a mesma do banco. Hoje ela roda em Washington (`iad1`) ([ADR 0002](docs/adr/0002-hospedagem-na-vercel.md)).
 - H-03, doação com prazo vencido não circula (RN-03), depois de decidirmos a D1 de [`docs/decisoes-de-projeto.md`](docs/decisoes-de-projeto.md).
 - Doação aceita e não retirada, depois de decidirmos a D2.
 - Aviso às ONGs quando surge uma doação, depois de decidirmos a D3.
