@@ -103,14 +103,15 @@ Regras que ninguém enuncia — estão no hábito de quem opera. Aqui viram fras
 | H-01 | Como **doador**, quero publicar uma doação informando tipo, quantidade e prazo de retirada, para que as ONGs saibam da comida antes que ela vença. | **N**egotiable é fraca: os três campos vêm de RN-01/CONF-01 e não são negociáveis com o time — negociá-los significa reabrir o conflito com a vigilância. **S**mall e **T**estable estão ok. |
 | H-02 | Como **ONG**, quero aceitar uma doação disponível e que ela saia da lista das demais, para que duas ONGs não deslocem voluntários para a mesma comida. | **I**ndependent falha: sem H-01 não existe doação para aceitar, então H-02 não entra em sprint sozinha. Podia ser fatiada (aceitar / sumir da lista / bloquear 2º aceite), mas as três partes sem as outras entregam meia regra — mantivemos junta assumindo o custo. |
 | H-03 | Como **ONG**, quero que doações com prazo de retirada vencido não apareçam nem possam ser aceitas, para não deslocar voluntário para comida que não pode mais ser distribuída. | **T**estable exige uma decisão que ainda não tomamos: comparar o prazo com o relógio do sistema torna o teste dependente da data em que ele roda. Antes de implementar, o "agora" precisa ser injetável (ver nota abaixo). **E**stimable sofre com isso. |
+| H-04 *(U2)* | Como **doador ou ONG**, quero entrar com meu e-mail e senha, para que o sistema saiba quem publicou e quem aceitou cada doação e ninguém aceite em nome de uma ONG. | **S**mall é a mais fraca: junta cadastro, login, sessão e a regra de quem pode o quê. Não fatiamos porque qualquer parte sozinha deixa o sistema tão aberto quanto antes. Nasce da Decisão de análise e do ADR 0003. |
 
 **Nota de implementação da H-03 (dívida já identificada):** o fixture `SOPA` em `tests/doacoes.test.js` usa `validade: '2026-08-01'` — uma data que **já passou**. No dia em que RN-03 for implementada, os testes hoje verdes de H-01 e H-02 quebram em bloco, porque a doação de teste passa a nascer vencida. A correção vem junto com a história: o prazo passa a ser calculado relativamente (`hoje + 1 dia`) ou o "agora" vira parâmetro das funções de `src/doacoes.js`. Registrar isso agora evita descobrir na véspera da entrega.
 
-**Fora do escopo da Unidade 1 (backlog):** autenticação de doador e de ONG, notificação às ONGs, cancelamento de aceite/no-show, campos opcionais de conservação, relatório de impacto para o patrocinador.
+**Fora do escopo da Unidade 1 (backlog):** autenticação de doador e de ONG, notificação às ONGs, cancelamento de aceite/no-show, campos opcionais de conservação, relatório de impacto para o patrocinador. Na Unidade 2, a autenticação saiu desta lista e virou a H-04 ([ADR 0003](adr/0003-identificacao-por-email-e-senha.md)).
 
 ## Critérios de aceite
 
-Cada critério aponta para o teste que o prova. Nome do teste entre aspas = existe em `tests/doacoes.test.js`; *(a escrever)* = ainda não.
+Cada critério aponta para o teste que o prova. Nome do teste entre aspas = existe em `tests/doacoes.test.js` ou `tests/contas.test.js`; *(a escrever)* = ainda não.
 
 ### H-01 — Doador publica uma doação
 
@@ -160,9 +161,9 @@ Cada critério aponta para o teste que o prova. Nome do teste entre aspas = exis
 
 - **CA-02.5 — ONG precisa se identificar**
   **Dado** uma doação disponível,
-  **Quando** chega um aceite sem o nome da ONG,
-  **Então** o sistema responde `400` e a doação continua `disponivel`.
-  → "recusa aceitar sem informar a ONG" — escrever este teste revelou que a rota em `src/app.js` preenchia `"ONG"` como nome padrão quando o campo vinha ausente, então a regra de `src/doacoes.js` nunca era alcançada; o padrão foi removido e o teste passou a proteger a regra
+  **Quando** chega um aceite de quem não entrou como ONG, mesmo que o pedido traga um nome de ONG,
+  **Então** o sistema responde `401` e a doação continua `disponivel`.
+  → "recusa aceite de quem não entrou como ONG". Na U1 o teste era "recusa aceitar sem informar a ONG" e esperava `400`: escrevê-lo revelou que a rota preenchia `"ONG"` como nome padrão, e o padrão foi removido. Com a H-04, o nome da ONG passou a vir da conta, e não do que é digitado.
 
 ### H-03 — Doação vencida não circula (RN-03) — pendente
 
@@ -189,6 +190,58 @@ Cada critério aponta para o teste que o prova. Nome do teste entre aspas = exis
   **Quando** tento publicar,
   **Então** o sistema responde `400` com "prazo de retirada já vencido".
   → *(a escrever)*
+
+### H-04 — Doador e ONG entram com e-mail e senha (RN-02, ADR 0003) — Unidade 2
+
+Testes em `tests/contas.test.js`, exceto quando indicado.
+
+- **CA-04.1 — o doador cria a própria conta**
+  **Dado** que informei nome, e-mail e uma senha com pelo menos 8 caracteres,
+  **Quando** crio minha conta,
+  **Então** o sistema responde `201`, já me deixa conectado como doador e a resposta não traz a senha.
+  → "cria a conta e já deixa o doador conectado"
+
+- **CA-04.2 — o cadastro público só cria doador**
+  **Dado** um pedido de cadastro que diz ser de ONG,
+  **Quando** ele é enviado,
+  **Então** a conta criada é de doador. Conta de ONG só é criada pela coordenação (`npm run ong:criar`).
+  → "cria sempre conta de doador, mesmo que o pedido diga ONG"
+
+- **CA-04.3 — cadastro inválido é recusado com o motivo**
+  **Dado** um e-mail que já tem cadastro, ou uma senha com menos de 8 caracteres,
+  **Quando** tento criar a conta,
+  **Então** o sistema responde `400` dizendo o motivo.
+  → "recusa e-mail que já tem cadastro" e "recusa senha com menos de 8 caracteres"
+
+- **CA-04.4 — senha errada não entra**
+  **Dado** uma conta existente,
+  **Quando** alguém tenta entrar com a senha errada,
+  **Então** o sistema responde `401` com "e-mail ou senha incorretos", sem dizer qual dos dois errou, e a pessoa continua desconectada.
+  → "recusa entrar com a senha errada"
+
+- **CA-04.5 — cada um só faz a sua parte**
+  **Dado** que não entrei, ou que entrei com o papel errado,
+  **Quando** tento publicar sem entrar, publicar como ONG ou aceitar como doador,
+  **Então** o sistema responde `401` sem login e `403` com o papel errado, e a doação continua `disponivel`.
+  → "recusa publicar sem entrar", "recusa publicação feita por ONG" e "recusa aceite feito por doador"; o aceite sem login é o CA-02.5
+
+- **CA-04.6 — o sistema registra quem fez**
+  **Dado** que a Padaria do Seu Paulo publicou e o Banco de Alimentos aceitou,
+  **Quando** a doação é listada e depois aceita,
+  **Então** a lista mostra quem doou e o aceite grava o nome da conta da ONG, mesmo que o pedido traga outro nome.
+  → "registra quem publicou e quem aceitou"
+
+- **CA-04.7 — a senha nunca é guardada como texto**
+  **Dado** uma conta criada,
+  **Quando** olhamos o banco,
+  **Então** existe só o resumo (hash) da senha, e não a senha.
+  → "guarda só o hash da senha, nunca a senha"
+
+- **CA-04.8 — a sessão termina**
+  **Dado** que entrei,
+  **Quando** saio, ou quando se passam 30 dias,
+  **Então** a próxima ação pede login de novo.
+  → "sair encerra a sessão" e "a sessão expira depois de 30 dias"
 
 ## Riscos
 
@@ -230,7 +283,7 @@ O protocolo completo — participantes, roteiro, instrumentação, ameaças à v
   2. Começar pelo fluxo publicar → listar → aceitar, sem autenticação.
   3. Começar pela notificação (avisar as ONGs quando surge doação).
 - **Decisão e justificativa:** alternativa **2**. É a menor fatia que sai da tela, passa pelas regras (`src/doacoes.js`), pelo SQL (`src/repositorio.js`) e chega ao banco — e é a única das três que mexe em OBJ-01, o indicador que define o problema. A (1) constrói infraestrutura antes de existir o que proteger; a (3) só faz sentido depois que existe doação publicada para notificar.
-- **Riscos e limitações:** sem autenticação, qualquer pessoa aceita em nome de qualquer ONG e o campo `ong` é texto livre, sujeito a erro de digitação — aceitável enquanto a rede é a da Marta, com ONGs conhecidas, mas vira história obrigatória na U2. RN-03 fica de fora da U1 (vira H-03), então doação vencida ainda circula. O modelo não guarda o doador que publicou, o que limita a rastreabilidade prometida à vigilância — decisão consciente, ligada ao risco já registrado.
+- **Riscos e limitações:** sem autenticação, qualquer pessoa aceita em nome de qualquer ONG e o campo `ong` é texto livre, sujeito a erro de digitação — aceitável enquanto a rede é a da Marta, com ONGs conhecidas, mas vira história obrigatória na U2 (atendido na U2 pela H-04 e pelo [ADR 0003](adr/0003-identificacao-por-email-e-senha.md)). RN-03 fica de fora da U1 (vira H-03), então doação vencida ainda circula. O modelo não guarda o doador que publicou, o que limita a rastreabilidade prometida à vigilância — decisão consciente, ligada ao risco já registrado.
 
 ## Uso de IA
 
@@ -240,5 +293,6 @@ O que geramos com IA, o que verificamos e o que alteramos.
 |---|---|---|
 | Rascunho das histórias H-01 a H-03, dos critérios de aceite e do protocolo do experimento | Claude (Anthropic) | Verificamos toda a informação, alteramos alguns pontos das histórias, excluimos alguns critérios |
 | Teste do CA-02.5 ("recusa aceitar sem informar a ONG"), remoção do nome padrão `"ONG"` na rota de aceite, segundo risco da tabela e atualização do README | Claude Code (Anthropic) | Revisamos o teste novo e a linha alterada na rota, rodamos `npm test` (8 passando) e ajustamos a redação do segundo risco |
+| História H-04, critérios CA-04.1 a CA-04.8 e atualização do CA-02.5 | Claude Code (Anthropic) | Escolhemos e-mail e senha como identificação; revisamos os critérios e conferimos cada um contra o teste correspondente |
 
 
