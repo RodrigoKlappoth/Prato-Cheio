@@ -67,6 +67,7 @@ src/db.js              conexão com o PostgreSQL
 prisma/schema.prisma   modelo das tabelas
 prisma/migrations/     SQL de cada mudança no banco
 prisma.config.js       configuração do Prisma (lê o .env)
+vercel.json            configuração da Vercel: a página inicial vai para o index.html
 scripts/criar-ong.js   cria conta de ONG (npm run ong:criar)
 public/                interface para celular: index.html, estilo.css e tela.js
 tests/                 testes automatizados (PostgreSQL em memória)
@@ -118,7 +119,7 @@ A fatia atravessa todas as camadas de propósito — é isso que faz dela um *wa
 | ONG vê a lista | lista **Doações disponíveis** | `GET /api/doacoes` | `listarDisponiveis` — exige login | `listarDisponiveis` — só `disponivel`, com o nome do doador |
 | ONG aceita | botão **Aceitar doação** | `POST /api/doacoes/:id/aceitar` | `aceitar` — só ONG; o nome vem da conta; explica por que recusou | `aceitar` — altera só se ainda estiver `disponivel`, numa única instrução (RN-02) |
 
-Cada critério de aceite de H-01, H-02 e H-04 em `docs/analise.md` aponta para um teste. São 22 testes, todos passando: 8 em `tests/doacoes.test.js`, 12 em `tests/contas.test.js` e 2 em `tests/deploy.test.js`, que conferem o que a Vercel exige. Erro de regra vira resposta `400`, falta de login vira `401` e papel errado vira `403`.
+Cada critério de aceite de H-01, H-02 e H-04 em `docs/analise.md` aponta para um teste. São 23 testes, todos passando: 8 em `tests/doacoes.test.js`, 12 em `tests/contas.test.js` e 3 em `tests/deploy.test.js`, que conferem o que a Vercel exige. Erro de regra vira resposta `400`, falta de login vira `401` e papel errado vira `403`.
 
 **Falta (backlog):**
 - Deploy na Vercel ([ADR 0002](docs/adr/0002-hospedagem-na-vercel.md)): o primeiro deploy caiu com erro 500 e a causa foi corrigida; falta publicar a correção e conferir o endereço público.

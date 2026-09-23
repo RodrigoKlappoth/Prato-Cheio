@@ -27,11 +27,12 @@ Vercel. Um minuto acordando o servidor é o dobro do tempo total que o doador ac
 - **Negativas / o que abrimos mão:**
   - Nada gravado em arquivo sobrevive, então o SQLite sai e o deploy depende do PostgreSQL ([ADR 0001](0001-banco-postgresql-no-neon.md)).
   - Não há memória entre requisições, então a sessão do login fica numa tabela do banco e não na memória do servidor ([ADR 0003](0003-identificacao-por-email-e-senha.md) já foi implementado assim).
-  - A Vercel usa como entrada o primeiro arquivo que importa o `express`, que é o `src/app.js`, e esse arquivo precisa exportar o app como padrão. O `src/server.js` usa o mesmo app para rodar localmente. A pasta `public/` já está onde a Vercel espera; o `express.static` só vale localmente.
+  - A Vercel usa como entrada o primeiro arquivo que importa o `express`, que é o `src/app.js`, e esse arquivo precisa exportar o app como padrão. O `src/server.js` usa o mesmo app para rodar localmente.
+  - A Vercel entrega os arquivos de `public/` pelo caminho exato, como `/index.html`, e o `express.static` só vale localmente. O endereço `/` não bate com nenhum arquivo, então caía no Express e dava "Cannot GET /". O `vercel.json` reescreve `/` para `/index.html`, e a página inicial sai direto da CDN, sem passar pela função.
   - A Vercel converte arquivos `.ts` em `.js` no build, então nenhum arquivo JavaScript pode importar `.ts`. Por isso o cliente do Prisma é gerado em JavaScript ([ADR 0004](0004-prisma-e-migrations.md)).
   - O plano Hobby é só para uso não comercial: serve ao projeto acadêmico. Se a rede adotar de verdade, reavaliar o plano.
 - **Riscos e o que fazer:**
-  - *Quebrar o deploy sem perceber.* O primeiro deploy caiu com erro 500 pelos dois motivos acima: o `src/app.js` não exportava o app, e o `src/db.js` importava o cliente do Prisma como `.ts` → os testes em `tests/deploy.test.js` conferem as duas regras a cada Pull Request.
+  - *Quebrar o deploy sem perceber.* O primeiro deploy caiu com erro 500 pelos dois motivos acima: o `src/app.js` não exportava o app, e o `src/db.js` importava o cliente do Prisma como `.ts` → os testes em `tests/deploy.test.js` conferem essas regras a cada Pull Request, junto com a reescrita da página inicial no `vercel.json`.
   - *Relógio em UTC.* Às 21h em São Paulo já é o dia seguinte em UTC, e a Vercel não deixa mudar o fuso (a variável `TZ` é reservada). Quando a RN-03 (H-03) entrar, uma doação "até hoje" publicada no fim do expediente poderia ser tratada como vencida → a decisão D1 de [`docs/decisoes-de-projeto.md`](../decisoes-de-projeto.md), ainda em aberto, precisa levar o fuso em conta: nas duas alternativas, *hoje* é a data de São Paulo (`America/Sao_Paulo`).
   - *Distância entre função e banco.* A função roda por padrão em Washington (`iad1`) → trocar a região da função para São Paulo (`gru1`), a mesma do banco. O plano gratuito permite uma região, e ela pode ser escolhida.
 
