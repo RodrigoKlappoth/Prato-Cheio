@@ -1,8 +1,10 @@
 import express from 'express';
+import { fileURLToPath } from 'node:url';
 import * as doacoes from './doacoes.js';
 import * as usuarios from './usuarios.js';
 
 const COOKIE_DA_SESSAO = 'sessao';
+const PAGINA_INICIAL = fileURLToPath(new URL('../public/index.html', import.meta.url));
 
 function lerSessao(req) {
   const cookie = (req.headers.cookie ?? '')
@@ -34,6 +36,10 @@ function responder(acao, statusDeSucesso = 200) {
 export function criarApp() {
   const app = express();
   app.use(express.json());
+
+  // Na Vercel, o endereço / é sempre do Express, então a página inicial sai daqui.
+  // O resto de public/ sai da CDN da Vercel e, localmente, do express.static.
+  app.get('/', (req, res) => res.sendFile(PAGINA_INICIAL));
   app.use(express.static('public'));
 
   // Verificação de saúde: usada pelo CI para provar que a aplicação sobe.

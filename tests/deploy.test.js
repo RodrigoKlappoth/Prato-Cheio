@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { readdirSync, readFileSync } from 'node:fs';
+import request from 'supertest';
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as moduloDoApp from '../src/app.js';
@@ -25,9 +27,20 @@ describe('o que a Vercel exige para rodar o sistema', () => {
     expect(importsDeArquivosTs()).toEqual([]);
   });
 
-  it('a página inicial vai para o index.html, que a Vercel entrega como arquivo estático', () => {
-    const configuracao = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
+  it('o próprio app entrega a página inicial, porque na Vercel o endereço / é sempre do Express', async () => {
+    // Na Vercel, os arquivos de public/ vão para a CDN e o express.static da função não os encontra.
+    // O teste sobe o app numa pasta vazia para ficar igual.
+    const pastaDoProjeto = process.cwd();
+    const pastaVazia = mkdtempSync(join(tmpdir(), 'como-na-vercel-'));
+    process.chdir(pastaVazia);
+    try {
+      const resposta = await request(moduloDoApp.criarApp()).get('/');
 
-    expect(configuracao.rewrites).toContainEqual({ source: '/', destination: '/index.html' });
+      expect(resposta.status).toBe(200);
+      expect(resposta.text).toContain('<html lang="pt-BR">');
+    } finally {
+      process.chdir(pastaDoProjeto);
+      rmSync(pastaVazia, { recursive: true, force: true });
+    }
   });
 });
