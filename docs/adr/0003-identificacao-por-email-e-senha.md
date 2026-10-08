@@ -1,7 +1,7 @@
 # ADR 0003 — Identificação de doador e ONG por e-mail e senha
 
 - **Data:** 2026-09-23
-- **Status:** aceito e implementado (história H-04)
+- **Status:** aceito e implementado (história H-04). Substituído em parte pelo [ADR 0006](0006-cadastro-de-ong-com-aprovacao-da-cidade.md): a regra "a conta de ONG é criada pela coordenação" vale até a rede atender a primeira cidade nova. O resto da decisão continua valendo.
 
 ## Contexto
 A Unidade 1 ficou sem identificação, de propósito. O preço foi registrado na própria análise, na Decisão de análise: "qualquer pessoa aceita em nome de qualquer ONG e o campo `ong` é texto livre", aceitável só enquanto a rede fosse a da Marta, com ONGs conhecidas, "mas vira história obrigatória na U2". A análise também registrou que "o modelo não guarda o doador que publicou", o que limita a rastreabilidade prometida à vigilância. E a tela mandava sempre o nome fixo "Minha ONG".

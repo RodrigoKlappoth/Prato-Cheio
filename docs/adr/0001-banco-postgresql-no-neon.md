@@ -32,6 +32,7 @@ Neon. A rede tem semanas sem doação (feriados, férias). Com o Supabase gratui
   - *Senha do banco vazar no repositório, que é público* → as duas URLs ficam só no `.env`, que o git ignora; o `.env.example` tem só um modelo. Se a senha vazar, trocar no painel do Neon.
   - *Testes apagarem dados reais* (os testes limpam as tabelas antes de cada caso) → os testes nunca usam o Neon: rodam num PostgreSQL em memória ([ADR 0004](0004-prisma-e-migrations.md)), e o `vitest.config.js` zera a `DATABASE_URL`.
   - *Atraso somado a cada consulta se banco e servidor ficarem longe* → o banco foi criado em São Paulo (`sa-east-1`); a função da Vercel deve ficar na mesma região ([ADR 0002](0002-hospedagem-na-vercel.md)).
+  - *A rede crescer para várias cidades* → com acesso o dia todo, o banco quase não fica parado, e o motivo que decidiu este ADR, acordar sozinho depois de semanas sem doação, perde peso. Mesmo assim, mantemos o Neon: a conexão com `-pooler` dá conta das muitas conexões curtas que a Vercel abre nos acessos simultâneos. Quando o plano gratuito, de 0,5 GB, não bastar, passamos ao plano pago, cobrado por uso. Um PostgreSQL num servidor próprio sairia mais barato em dinheiro, mas alguém teria de cuidar de backup, atualização e servidor fora do ar, o que repetiria a dependência de uma pessoa do problema central.
 - **Quando:** a troca do SQLite pelo PostgreSQL estava prevista para a Unidade 3. Foi antecipada para a Unidade 2 porque o deploy depende dela; o registro está em `docs/refatoracoes.md`.
 
 ## Rastreabilidade

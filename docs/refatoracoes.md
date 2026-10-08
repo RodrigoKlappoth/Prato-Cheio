@@ -4,7 +4,7 @@
 
 ## Refatoração 1 — Migração de SQLite para PostgreSQL
 
-- **Motivo:** a hospedagem escolhida, a Vercel ([ADR 0002](adr/0002-hospedagem-na-vercel.md)), não guarda arquivos, então o SQLite não funcionaria em produção. O banco passou a ser PostgreSQL no Neon ([ADR 0001](adr/0001-banco-postgresql-no-neon.md)), com o modelo e as migrations no Prisma ([ADR 0004](adr/0004-prisma-e-migrations.md)). A troca estava prevista para a Unidade 3 e foi antecipada para a Unidade 2.
+- **Motivo:** a hospedagem escolhida, a Vercel ([ADR 0002](adr/0002-hospedagem-na-vercel.md)), não guarda arquivos, então o SQLite não funcionaria em produção. O banco passou a ser PostgreSQL ([ADR 0005](adr/0005-postgresql-no-lugar-do-sqlite.md)), no Neon ([ADR 0001](adr/0001-banco-postgresql-no-neon.md)), com o modelo e as migrations no Prisma ([ADR 0004](adr/0004-prisma-e-migrations.md)). A troca estava prevista para a Unidade 3 e foi antecipada para a Unidade 2.
 - **O que mudou:**
   - `prisma/schema.prisma` e `prisma/migrations/`: o modelo das tabelas e o SQL que as cria, no lugar do `CREATE TABLE` que ficava no `src/db.js`.
   - `src/db.js`: agora só cria o Prisma Client conectado ao Neon pela `DATABASE_URL`.

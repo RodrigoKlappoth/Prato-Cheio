@@ -34,7 +34,7 @@ npm test             # roda os testes, sem usar o Neon
 npm run dev          # sobe recarregando a cada alteração
 ```
 
-Doadores criam a própria conta na tela. ONGs **não** se cadastram sozinhas: a coordenação cria a conta com `npm run ong:criar`, como no exemplo acima ([ADR 0003](docs/adr/0003-identificacao-por-email-e-senha.md)). Para ver os dois papéis ao mesmo tempo, use uma janela normal para o doador e uma janela anônima para a ONG.
+Doadores criam a própria conta na tela. ONGs **não** se cadastram sozinhas: a coordenação cria a conta com `npm run ong:criar`, como no exemplo acima ([ADR 0003](docs/adr/0003-identificacao-por-email-e-senha.md)). Quando a rede atender outras cidades, a ONG passa a se cadastrar na tela, com aprovação da coordenação da cidade ([ADR 0006](docs/adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md)). Para ver os dois papéis ao mesmo tempo, use uma janela normal para o doador e uma janela anônima para a ONG.
 
 Os testes rodam num **PostgreSQL em memória** (PGlite), criado a partir das mesmas migrations que vão para o Neon. Eles não precisam de internet nem de senha e nunca tocam no banco de verdade.
 
@@ -52,7 +52,7 @@ Os testes rodam num **PostgreSQL em memória** (PGlite), criado a partir das mes
 - **Para ver o que falta aplicar:** `npx prisma migrate status`.
 - **As consultas** ficam só em `src/repositorio.js`: as regras de negócio não sabem qual é o banco.
 
-Os porquês estão nos ADRs [0001](docs/adr/0001-banco-postgresql-no-neon.md) (Neon) e [0004](docs/adr/0004-prisma-e-migrations.md) (Prisma e migrations). A troca de banco está registrada em [`docs/refatoracoes.md`](docs/refatoracoes.md).
+Os porquês estão nos ADRs [0005](docs/adr/0005-postgresql-no-lugar-do-sqlite.md) (PostgreSQL no lugar do SQLite), [0001](docs/adr/0001-banco-postgresql-no-neon.md) (Neon) e [0004](docs/adr/0004-prisma-e-migrations.md) (Prisma e migrations). A troca de banco está registrada em [`docs/refatoracoes.md`](docs/refatoracoes.md).
 
 ## Estrutura
 
@@ -109,6 +109,7 @@ Mudou o banco? A pasta nova em `prisma/migrations/` entra no mesmo Pull Request,
 - **No ar na Vercel:** [prato-cheio-sigma.vercel.app](https://prato-cheio-sigma.vercel.app) ([ADR 0002](docs/adr/0002-hospedagem-na-vercel.md)). Cada merge na `main` publica uma versão nova.
 - **Tela nova, pensada para o celular.** Tem entrar e criar conta, publicar com confirmação e erro visível, e a lista de doações da ONG com o botão de aceitar.
 - **Decisões de projeto** em [`docs/decisoes-de-projeto.md`](docs/decisoes-de-projeto.md): três decisões que o caso exige, cada uma com duas alternativas, a tabela de trade-offs da D3 e a justificativa ligada à nossa análise. O resumo de todas as decisões, inclusive as que já tomamos, está em [`docs/projeto.md`](docs/projeto.md).
+- **ADRs 0005 e 0006.** O [ADR 0005](docs/adr/0005-postgresql-no-lugar-do-sqlite.md) registra por que trocamos o SQLite pelo PostgreSQL, com contexto, alternativas e consequências. O [ADR 0006](docs/adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md) revisa o [ADR 0003](docs/adr/0003-identificacao-por-email-e-senha.md) para uma rede em várias cidades: mantém o e-mail e senha e troca a regra da conta de ONG.
 
 A fatia atravessa todas as camadas de propósito — é isso que faz dela um *walking skeleton*:
 
@@ -126,7 +127,8 @@ Cada critério de aceite de H-01, H-02 e H-04 em `docs/analise.md` aponta para u
 - H-03, doação com prazo vencido não circula (RN-03), depois de decidirmos a D1 de [`docs/decisoes-de-projeto.md`](docs/decisoes-de-projeto.md).
 - Doação aceita e não retirada, depois de decidirmos a D2.
 - Aviso às ONGs quando surge uma doação, depois de decidirmos a D3.
-- Recuperação de senha e limite de tentativas de login ([ADR 0003](docs/adr/0003-identificacao-por-email-e-senha.md)).
+- Recuperação de senha e limite de tentativas de login ([ADR 0003](docs/adr/0003-identificacao-por-email-e-senha.md)). Os dois são pré-requisitos para a rede atender outras cidades ([ADR 0006](docs/adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md)).
+- Cadastro de ONG com aprovação da coordenação da cidade, antes da primeira cidade nova ([ADR 0006](docs/adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md)).
 
 Detalhes em "Fora do escopo" e "Riscos" de `docs/analise.md`.
 
