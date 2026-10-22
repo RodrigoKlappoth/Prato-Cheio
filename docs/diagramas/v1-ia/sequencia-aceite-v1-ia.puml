@@ -1,0 +1,34 @@
+' =====================================================================
+' VERSÃO 1 — GERADA PELA IA, PRESERVADA SEM NENHUMA CORREÇÃO
+' Diagrama de Sequência — ONG aceita uma doação (Prato Cheio)
+' Ferramenta: Claude (Anthropic)
+' NÃO EDITAR. Este arquivo é a evidência da Parte 2 do trabalho.
+' A versão corrigida está em docs/diagramas/final/sequencia-aceite-v2.puml
+' =====================================================================
+
+@startuml sequencia-aceite-v1-ia
+title ONG aceita uma doação (v1, gerada por IA)
+
+actor ONG
+participant "Sistema Prato Cheio" as Sistema
+database "Banco de Dados" as Banco
+
+ONG -> Sistema : aceitar doação (id)
+activate Sistema
+
+Sistema -> Banco : buscar doação pelo id
+activate Banco
+Banco --> Sistema : dados da doação
+deactivate Banco
+
+Sistema -> Sistema : verificar se a doação está disponível
+
+Sistema -> Banco : atualizar status para "aceita"
+activate Banco
+Banco --> Sistema : confirmação
+deactivate Banco
+
+Sistema --> ONG : doação aceita com sucesso
+deactivate Sistema
+
+@enduml
