@@ -1,0 +1,61 @@
+' =====================================================================
+' VERSÃO 2 — REVISADA PELO GRUPO
+' Diagrama de Estados — ciclo de vida de uma doação (Prato Cheio)
+' Confrontado com: prisma/schema.prisma (enum StatusDaDoacao),
+' src/doacoes.js, src/repositorio.js e docs/analise.md (RN-01/02/03).
+' Problemas corrigidos: ver docs/diagramas/README.md (Problema 1 e 3).
+' =====================================================================
+
+@startuml estados-doacao-v2
+hide empty description
+skinparam state {
+  BackgroundColor<<derivado>> #FEF7E0
+  BorderColor<<derivado>> #B8860B
+}
+title Ciclo de vida de uma Doação — Prato Cheio (revisado)
+
+state "disponivel" as Disponivel
+state "aceita" as Aceita
+state "vencida" as Vencida <<derivado>>
+
+Disponivel : status persistido (enum StatusDaDoacao)
+Disponivel : aparece em GET /api/doacoes
+Aceita : status persistido (enum StatusDaDoacao)
+Aceita : grava ong_id e ong (nome vindo da conta)
+Vencida : NÃO é valor do enum — é derivado de validade < hoje
+Vencida : estado terminal na prática: some da lista e recusa aceite
+
+[*] --> Disponivel : POST /api/doacoes\n[papel = doador] /RN-01: tipo, quantidade\ne validade preenchidos, senão 400
+
+Disponivel --> Aceita : POST /api/doacoes/:id/aceitar\n[papel = ong E status ainda = disponivel]\n/ RN-02: grava ong_id, ong e sai da lista
+
+Disponivel --> Disponivel : POST /api/doacoes/:id/aceitar\n[papel != ong] / 403, estado não muda (CA-04.5)
+
+Aceita --> Aceita : POST /api/doacoes/:id/aceitar\n[segunda ONG tenta] / 400 "já foi aceita por {ONG}" (CA-02.3)
+
+Disponivel --> Vencida : passagem do tempo\n[validade < hoje] (RN-03, pendente)
+
+Vencida --> Vencida : POST /api/doacoes/:id/aceitar\n/ 400 "prazo de retirada vencido" (CA-03.2)
+
+Aceita --> [*] : retirada combinada fora do sistema (INC-05)
+
+note right of Vencida
+  Decisão de projeto: "vencida" não vira
+  um terceiro valor do enum. É calculado
+  na consulta (WHERE validade >= hoje),
+  porque nenhum evento do usuário provoca
+  a transição — só a passagem do tempo.
+  Guardar o valor exigiria uma rotina
+  periódica que o sistema não tem.
+end note
+
+note bottom of Aceita
+  Não existe cancelamento de aceite na U2.
+  INC-05 e o 2º risco de docs/analise.md
+  registram isso como história de backlog
+  ("ONG cancela o aceite" / liberação
+  automática em 4 h). Por isso NÃO há
+  transição Aceita --> Disponivel aqui.
+end note
+
+@enduml

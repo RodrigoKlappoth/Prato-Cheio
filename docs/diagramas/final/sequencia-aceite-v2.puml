@@ -1,0 +1,100 @@
+' =====================================================================
+' VERSÃO 2 — REVISADA PELO GRUPO
+' Diagrama de Sequência — ONG aceita uma doação (POST /api/doacoes/:id/aceitar)
+' Confrontado com: src/app.js, src/usuarios.js, src/doacoes.js,
+' src/repositorio.js e docs/analise.md (RN-02, CA-02.3/02.4/04.5).
+' Problemas corrigidos: ver docs/diagramas/README.md (Problema 2 e 3).
+' =====================================================================
+
+@startuml sequencia-aceite-v2
+title ONG aceita uma doação — POST /api/doacoes/:id/aceitar (revisado)
+
+actor "ONG\n(Banco de Alimentos)" as ONG
+participant "public/index.html" as UI
+participant "app.js\nrotas Express" as APP
+participant "usuarios.js\nsessão e papéis" as USU
+participant "doacoes.js\nregras de negócio" as REG
+participant "repositorio.js\nPrisma" as REPO
+database "PostgreSQL" as DB
+
+ONG -> UI : clica em "Aceitar"
+UI -> APP : POST /api/doacoes/7/aceitar\nCookie: sessao=(token)
+activate APP
+
+== Identificação (H-04) ==
+APP -> USU : pelaSessao(token)
+activate USU
+USU -> REPO : buscarUsuarioPelaSessao(token, agora)
+REPO -> DB : SELECT sessoes JOIN usuarios\nWHERE token = ? AND expira_em > agora
+DB --> REPO : usuario ou vazio
+REPO --> USU : usuario ou undefined
+USU --> APP : req.usuario
+deactivate USU
+
+APP -> REG : aceitar(req.usuario, "7")
+activate REG
+
+alt sem sessão válida
+  REG --> APP : falha("entre com seu e-mail e senha", 401)
+  APP --> UI : 401 { erro }
+  UI --> ONG : pede login (CA-02.5)
+
+else papel diferente de "ong"
+  REG --> APP : falha("só ONGs aceitam doações", 403)
+  APP --> UI : 403 { erro }
+  UI --> ONG : doação continua disponivel (CA-04.5)
+
+else id não é inteiro positivo
+  REG --> APP : falha("id de doação inválido")
+  APP --> UI : 400 { erro }
+
+else ONG autenticada e id válido
+  REG -> REPO : aceitar(7, usuario)
+
+  note right of REPO
+    RN-02 sob concorrência:
+    UMA escrita condicional, sem leitura prévia.
+    Duas ONGs simultâneas disputam a mesma linha
+    e o banco garante que só uma recebe count = 1.
+  end note
+
+  REPO -> DB : UPDATE doacoes\nSET status='aceita', ong=(nome da conta), ong_id=(id da ONG)\nWHERE id = 7 AND status = 'disponivel'
+  DB --> REPO : count (0 ou 1)
+
+  alt count = 1 — aceite efetivado
+    REPO -> DB : SELECT * FROM doacoes WHERE id = 7
+    DB --> REPO : doacao
+    REPO --> REG : doacao (status = aceita)
+    REG --> APP : doacao
+    APP --> UI : 200 { ...doacao }
+    UI --> ONG : doação sai da lista de disponíveis (CA-02.1, CA-02.2)
+
+  else count = 0 — nada foi alterado
+    REPO --> REG : undefined
+    REG -> REPO : buscarPorId(7)
+    REPO -> DB : SELECT * FROM doacoes WHERE id = 7
+    DB --> REPO : doacao ou null
+    REPO --> REG : doacao ou null
+
+    alt doação não existe
+      REG --> APP : falha("doação não encontrada")
+      APP --> UI : 400 { erro } (CA-02.4)
+    else já aceita por outra ONG
+      REG --> APP : falha("esta doação já foi aceita por {nome da ONG}")
+      APP --> UI : 400 { erro } (CA-02.3)
+      UI --> ONG : mostra quem levou a doação
+    end
+  end
+end
+
+deactivate REG
+deactivate APP
+
+note over REG, DB
+  Fora do diagrama por decisão explícita:
+  RN-03 (doação vencida) ainda não é verificada aqui.
+  Enquanto a H-03 não for implementada, uma doação
+  com validade no passado continua aceitável.
+end note
+
+@enduml
