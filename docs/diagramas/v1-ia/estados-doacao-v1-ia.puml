@@ -1,0 +1,34 @@
+' =====================================================================
+' VERSÃO 1 — GERADA PELA IA, PRESERVADA SEM NENHUMA CORREÇÃO
+' Diagrama de Estados — ciclo de vida de uma doação (Prato Cheio)
+' Ferramenta: Claude (Anthropic)
+' NÃO EDITAR. Este arquivo é a evidência da Parte 2 do trabalho.
+' A versão corrigida está em docs/diagramas/final/estados-doacao-v2.puml
+' =====================================================================
+
+@startuml estados-doacao-v1-ia
+hide empty description
+title Ciclo de vida de uma Doação — Prato Cheio (v1, gerada por IA)
+
+[*] --> Pendente
+
+Pendente : doação cadastrada pelo doador
+Pendente --> Disponivel : aprovada pela coordenação
+Pendente --> Rejeitada : reprovada pela coordenação
+
+Disponivel : visível para as ONGs
+Disponivel --> Reservada : ONG reserva a doação
+Disponivel --> Cancelada : doador cancela
+
+Reservada : aguardando retirada
+Reservada --> EmTransporte : voluntário coleta
+Reservada --> Disponivel : ONG desiste
+Reservada --> Cancelada : doador cancela
+
+EmTransporte --> Entregue : entrega confirmada
+
+Entregue --> [*]
+Rejeitada --> [*]
+Cancelada --> [*]
+
+@enduml
