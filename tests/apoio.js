@@ -1,9 +1,22 @@
 import request from 'supertest';
 import { expect } from 'vitest';
 import { cadastrarOng, cadastrarCoordenacao } from '../src/usuarios.js';
+import { hojeNaRede } from '../src/regras.js';
 
 export const SENHA = 'senha-segura';
 export const CIDADE = 'Santo André';
+
+// Prazo de retirada contado a partir do dia de hoje em São Paulo, para o teste
+// não depender do dia em que roda (decisão D1, ADR 0007). Era a dívida que a
+// análise registrou na nota de implementação da H-03: o fixture usava uma data
+// fixa que, com a RN-03 implementada, nasceria vencida.
+export function diaNaRede(deslocamentoEmDias = 0) {
+  const meioDia = new Date(`${hojeNaRede()}T12:00:00Z`);
+  meioDia.setUTCDate(meioDia.getUTCDate() + deslocamentoEmDias);
+  return meioDia.toISOString().slice(0, 10);
+}
+
+export const SOPA = { tipo: 'Sopa', quantidade: '10 porções', validade: diaNaRede(1) };
 
 async function entrar(app, email) {
   const agente = request.agent(app);

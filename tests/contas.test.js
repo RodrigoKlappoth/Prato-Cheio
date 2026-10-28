@@ -4,11 +4,10 @@ import { criarApp } from '../src/app.js';
 import { banco } from '../src/db.js';
 import { cadastrarPeloSite, pelaSessao } from '../src/usuarios.js';
 import { criarBancoEmMemoria, limparBanco, fecharBancoEmMemoria } from './banco-em-memoria.js';
-import { entrarComoDoador, entrarComoOng } from './apoio.js';
+import { SOPA, entrarComoDoador, entrarComoOng } from './apoio.js';
 
 const app = criarApp();
 
-const SOPA = { tipo: 'Sopa', quantidade: '10 porções', validade: '2026-08-01' };
 const PAULO = { nome: 'Padaria do Seu Paulo', email: 'paulo@padaria.com', senha: 'senha-segura' };
 const TRINTA_E_UM_DIAS = 31 * 24 * 60 * 60 * 1000;
 

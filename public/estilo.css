@@ -297,6 +297,14 @@ input:focus-visible { outline: none; }
 
 .titulo-com-acao { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 
+.bloco { margin-top: 2.75rem; }
+
+.bloco h2 { color: var(--folha-escura); }
+
+.bloco .apoio { font-size: 0.98rem; }
+
+.bloco .comandas { margin-top: 1rem; }
+
 .comandas { display: grid; gap: 1rem; margin: 0; padding: 0; list-style: none; }
 
 .comanda {
@@ -376,6 +384,18 @@ input:focus-visible { outline: none; }
 .duas-acoes { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
 
 .duas-acoes .botao { width: 100%; margin-top: 0; }
+
+/* O cartão de histórico sem botões fecha o próprio rodapé; com botões, quem
+   fecha é o .comanda-rodape, que já traz o recorte e o espaçamento de baixo. */
+.comanda-historico { padding-bottom: 1.1rem; }
+
+.comanda-historico:has(.comanda-rodape) { padding-bottom: 0; }
+
+.comanda-estado { margin: 0.6rem 0 0; color: var(--tinta-suave); font-weight: 700; }
+
+.comanda-historico[data-estado="aceita"] .comanda-estado { color: var(--tomate); }
+
+.comanda-historico[data-estado="retirada"] .comanda-estado { color: var(--folha-escura); }
 
 .carimbo {
   position: absolute;

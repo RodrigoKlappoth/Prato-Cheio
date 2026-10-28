@@ -3,11 +3,10 @@ import request from 'supertest';
 import { criarApp } from '../src/app.js';
 import { banco } from '../src/db.js';
 import { criarBancoEmMemoria, limparBanco, fecharBancoEmMemoria } from './banco-em-memoria.js';
-import { SENHA, CIDADE, entrarComoDoador, entrarComoOng, entrarComoCoordenacao, cadastrarOngPelaTela } from './apoio.js';
+import { SOPA, SENHA, CIDADE, entrarComoDoador, entrarComoOng, entrarComoCoordenacao, cadastrarOngPelaTela } from './apoio.js';
 
 const app = criarApp();
 
-const SOPA = { tipo: 'Sopa', quantidade: '10 porções', validade: '2026-08-01' };
 const COZINHA = { nome: 'Cozinha da Vila', email: 'contato@cozinhadavila.org', senha: SENHA, cidade: CIDADE, papel: 'ong' };
 
 beforeAll(criarBancoEmMemoria);

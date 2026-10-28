@@ -166,9 +166,11 @@ function entrouComo(usuario) {
     $('situacao-da-conta').hidden = !aviso;
     mostrarTela('tela-ong');
     carregarDoacoes();
+    carregarRecentes();
   } else {
     mostrarTela('tela-doador');
     prepararNovaDoacao();
+    carregarRecentes();
   }
 }
 
@@ -240,6 +242,9 @@ function prepararNovaDoacao() {
   const formulario = $('form-doacao');
   formulario.reset();
   mostrarErro(formulario, '');
+  // Doação com prazo no passado é recusada pelo servidor (RN-03). O min deixa o
+  // calendário do celular recusar antes, sem gastar uma viagem de ida e volta.
+  $('validade').min = dataLocal(0);
   formulario.hidden = false;
   $('confirmacao').hidden = true;
   $('tipo').focus();
@@ -262,6 +267,7 @@ $('form-doacao').addEventListener('submit', (evento) => {
     if (status === 401) return sessaoEncerrada();
     if (!ok) return dados.erro;
     mostrarConfirmacao(dados);
+    carregarRecentes();
   });
 });
 
@@ -278,13 +284,17 @@ function atualizarContagem() {
   $('contagem').textContent = total === 0 ? '' : `${total} ${total === 1 ? 'doação esperando' : 'doações esperando'} uma ONG.`;
 }
 
-function listaVazia() {
+function cartaoVazio(titulo, explicacao) {
   const item = elemento('li', 'vazio');
-  item.append(
-    elemento('p', 'vazio-titulo', 'Nenhuma doação esperando agora.'),
-    elemento('p', null, 'Quando um doador publicar, ela aparece aqui. Toque em Atualizar para conferir.')
-  );
+  item.append(elemento('p', 'vazio-titulo', titulo), elemento('p', null, explicacao));
   return item;
+}
+
+function listaVazia() {
+  return cartaoVazio(
+    'Nenhuma doação esperando agora.',
+    'Quando um doador publicar, ela aparece aqui. Toque em Atualizar para conferir.'
+  );
 }
 
 function comandaDaDoacao(doacao, ordem) {
@@ -357,12 +367,10 @@ function atualizarContagemDePedidos() {
 }
 
 function semPedidos() {
-  const item = elemento('li', 'vazio');
-  item.append(
-    elemento('p', 'vazio-titulo', 'Nenhum pedido esperando.'),
-    elemento('p', null, 'Quando uma ONG da sua cidade criar conta, o pedido aparece aqui.')
+  return cartaoVazio(
+    'Nenhum pedido esperando.',
+    'Quando uma ONG da sua cidade criar conta, o pedido aparece aqui.'
   );
-  return item;
 }
 
 function cartaoDoPedido(pedido, ordem) {
@@ -422,9 +430,92 @@ async function avaliarPedido(pedido, acao, cartao, botoes) {
 
 $('atualizar-pedidos').addEventListener('click', carregarPedidos);
 
+const HISTORICO = {
+  doador: {
+    lista: 'lista-minhas',
+    vazio: ['Você ainda não publicou nada.', 'O que você publicar aparece aqui, com o que aconteceu com cada doação.']
+  },
+  ong: {
+    lista: 'lista-aceitas',
+    vazio: ['Você ainda não aceitou nenhuma doação.', 'O que você aceitar aparece aqui, para confirmar a retirada depois.']
+  }
+};
+
+function estadoDaDoacao(doacao) {
+  if (doacao.status === 'disponivel') return 'Esperando uma ONG';
+  const quem = usuarioAtual.papel === 'doador' ? doacao.ong : 'você';
+  return doacao.status === 'retirada' ? `Retirada por ${quem}` : `Aceita por ${quem}`;
+}
+
+function cartaoDoHistorico(doacao, ordem) {
+  // Sem a classe "aceita": ela é a animação de sair da lista, e aqui o cartão
+  // de uma doação aceita precisa ficar na tela.
+  const cartao = elemento('li', 'comanda comanda-historico');
+  cartao.style.setProperty('--ordem', ordem);
+  cartao.dataset.estado = doacao.status;
+
+  const prazo = elemento('p', 'comanda-prazo', `Retirar até ${prazoLegivel(doacao.validade)}`);
+  prazo.append(elemento('span', 'comanda-numero', `nº ${doacao.id}`));
+
+  cartao.append(
+    prazo,
+    elemento('h2', 'comanda-tipo', doacao.tipo),
+    elemento('p', 'comanda-quantidade', doacao.quantidade),
+    elemento('p', 'comanda-estado', estadoDaDoacao(doacao))
+  );
+
+  if (usuarioAtual.papel === 'ong' && doacao.status === 'aceita') {
+    const retirar = elemento('button', 'botao botao-cheio', 'Confirmar retirada');
+    retirar.type = 'button';
+    const cancelar = elemento('button', 'botao botao-contorno', 'Cancelar aceite');
+    cancelar.type = 'button';
+
+    const rodape = elemento('div', 'comanda-rodape duas-acoes');
+    rodape.append(retirar, cancelar);
+    for (const [acao, botao] of [['retirar', retirar], ['cancelar', cancelar]]) {
+      botao.addEventListener('click', () => mudarAceite(doacao, acao, [retirar, cancelar]));
+    }
+    cartao.append(rodape);
+  }
+
+  return cartao;
+}
+
+async function carregarRecentes() {
+  const historico = HISTORICO[usuarioAtual?.papel];
+  if (!historico) return;
+
+  const { ok, status, dados } = await chamarApi('/api/doacoes/recentes');
+  if (status === 401) return sessaoEncerrada();
+  if (!ok) return avisar(dados.erro, 'erro');
+  $(historico.lista).replaceChildren(
+    ...(dados.length ? dados.map(cartaoDoHistorico) : [cartaoVazio(...historico.vazio)])
+  );
+}
+
+async function mudarAceite(doacao, acao, botoes) {
+  for (const botao of botoes) botao.disabled = true;
+  const { ok, status, dados } = await chamarApi(`/api/doacoes/${doacao.id}/${acao}`, { metodo: 'POST' });
+  if (status === 401) return sessaoEncerrada();
+
+  if (!ok) avisar(dados.erro, 'erro');
+  else if (acao === 'retirar') avisar(`retirada de ${doacao.tipo} confirmada`);
+  else avisar(`${doacao.tipo} voltou para a lista das ONGs da rede`);
+
+  // O cancelamento devolve a doação para a lista de disponíveis, então as duas
+  // listas da tela mudam juntas.
+  await carregarDoacoes();
+  await carregarRecentes();
+}
+
+$('atualizar-minhas').addEventListener('click', carregarRecentes);
+
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible') return;
-  if (!$('tela-ong').hidden) carregarDoacoes();
+  if (!$('tela-ong').hidden) {
+    carregarDoacoes();
+    carregarRecentes();
+  }
   if (!$('tela-coordenacao').hidden) carregarPedidos();
 });
 

@@ -82,9 +82,15 @@ export function criarApp() {
 
   app.get('/api/doacoes', responder((req) => doacoes.listarDisponiveis(req.usuario)));
 
+  app.get('/api/doacoes/recentes', responder((req) => doacoes.listarRecentes(req.usuario)));
+
   app.post('/api/doacoes', responder((req) => doacoes.criarDoacao(req.usuario, req.body), 201));
 
   app.post('/api/doacoes/:id/aceitar', responder((req) => doacoes.aceitar(req.usuario, req.params.id)));
+
+  app.post('/api/doacoes/:id/retirar', responder((req) => doacoes.confirmarRetirada(req.usuario, req.params.id)));
+
+  app.post('/api/doacoes/:id/cancelar', responder((req) => doacoes.cancelarAceite(req.usuario, req.params.id)));
 
   return app;
 }

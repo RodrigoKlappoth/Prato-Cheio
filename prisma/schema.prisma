@@ -20,9 +20,12 @@ enum SituacaoDaConta {
   recusada
 }
 
+// Ciclo de vida da doação. O aceite pode ser cancelado e a doação volta para
+// disponivel; a retirada é o fim da linha (ADR 0008).
 enum StatusDaDoacao {
   disponivel
   aceita
+  retirada
 }
 
 model Usuario {
@@ -64,6 +67,8 @@ model Doacao {
   status        StatusDaDoacao @default(disponivel)
   ong           String?
   criada_em     DateTime       @default(now())
+  aceita_em     DateTime?
+  retirada_em   DateTime?
   doador_id     Int
   ong_id        Int?
   publicada_por Usuario        @relation("DoacoesPublicadas", fields: [doador_id], references: [id])

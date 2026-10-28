@@ -125,6 +125,14 @@
         <p class="apoio">As ONGs da rede já podem ver e aceitar.</p>
         <button type="button" class="botao botao-contorno" id="publicar-outra">Publicar outra doação</button>
       </div>
+
+      <section class="bloco">
+        <div class="titulo-com-acao">
+          <h2>Suas doações recentes</h2>
+          <button type="button" class="botao botao-contorno botao-pequeno" id="atualizar-minhas">Atualizar</button>
+        </div>
+        <ul class="comandas" id="lista-minhas"></ul>
+      </section>
     </section>
 
     <section id="tela-ong" hidden>
@@ -135,6 +143,12 @@
       <p class="faixa" id="situacao-da-conta" role="status" hidden></p>
       <p class="apoio" id="contagem" aria-live="polite"></p>
       <ul class="comandas" id="lista"></ul>
+
+      <section class="bloco">
+        <h2>Suas doações aceitas</h2>
+        <p class="apoio">Confirme a retirada quando buscar, ou cancele o aceite para devolver a doação à lista das outras ONGs.</p>
+        <ul class="comandas" id="lista-aceitas"></ul>
+      </section>
     </section>
 
     <section id="tela-coordenacao" hidden>
