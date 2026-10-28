@@ -21,6 +21,7 @@
 | Imagens renderizadas (leitura rápida) | `docs/diagramas/img/*.png` |
 | Reflexão final | Este arquivo, seção **5** |
 | Pull Request revisado | link na seção **6** |
+| *(entrega 2)* Estados depois das histórias novas | `docs/diagramas/final/estados-doacao-v3.puml`, explicado na seção **7** |
 
 Os arquivos `v1-ia/` **não foram editados** depois de gerados: são a evidência da Parte 2.
 
@@ -123,3 +124,27 @@ Ou seja: o diagrama de sequência melhorou nossa *comunicação*, e o de estados
 - **Repositório:** https://github.com/RodrigoKlappoth/Prato-Cheio
 - **Pull Request revisado:** _(colar o link do PR aqui depois de abri-lo)_
 - **Uso de IA:** a primeira versão dos dois diagramas foi gerada com Claude (Anthropic). O grupo revisou cada elemento contra o código e os documentos do repositório, identificou os três problemas acima e reescreveu os dois diagramas. Todo o conteúdo das seções 1, 3 e 5 foi discutido e redigido pelo grupo.
+
+---
+
+## 7. Atualização na entrega 2 (2026-10-27)
+
+A entrega 2 implementou as regras RN-03, RN-04 e RN-05, e isso mexeu justamente no diagrama que havíamos escolhido por ser o do "coração do sistema". Criamos uma **v3 do diagrama de estados** e **mantivemos a v2 como está**: ela é a entrega desta atividade e registra o ciclo de vida de antes. Guardar as duas é o que mostra a evolução.
+
+| Arquivo | O que é |
+|---|---|
+| `docs/diagramas/v1-ia/estados-doacao-v1-ia.puml` | Versão gerada pela IA, não editada (evidência da Parte 2) |
+| `docs/diagramas/final/estados-doacao-v2.puml` | Versão revisada pelo grupo nesta atividade |
+| `docs/diagramas/final/estados-doacao-v3.puml` | **Nova:** o ciclo de vida depois da entrega 2 |
+
+O que mudou da v2 para a v3, e por quê:
+
+| Mudança | Motivo |
+|---|---|
+| Estado **`retirada`** novo, terminal, gravando `retirada_em` | Decisão D2, [ADR 0008](../adr/0008-retirada-confirmada-e-cancelamento-do-aceite.md). A v2 tinha `Aceita --> [*] : retirada combinada fora do sistema (INC-05)`: a retirada entrou no sistema, e com ela a medida do OBJ-01 |
+| Transição **`aceita → disponivel`** pelo cancelamento | A v2 tinha uma nota dizendo explicitamente que essa transição **não** existia, e remetendo à INC-05. Ela passou a existir, e a nota da v3 cita a da v2 |
+| A transição para **`vencida`** deixou de ser "(RN-03, pendente)" | A RN-03 foi implementada ([ADR 0007](../adr/0007-agora-como-parametro-e-dia-de-sao-paulo.md)) |
+| Guarda do aceite ganhou `situacao = aprovada` e `validade >= hoje` | RN-04 ([ADR 0006](../adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md)) e RN-03 |
+| Autotransições novas para os erros de retirar e cancelar | CA-07.4 e CA-07.6 |
+
+**A decisão de projeto da v2 se confirmou.** A reflexão da seção 5 dizia que o diagrama de estados nos obrigou a decidir se "vencida" seria um valor do enum ou algo calculado na consulta, e que escolhemos calcular. Ao implementar a RN-03 de verdade, mantivemos essa escolha: o `enum StatusDaDoacao` ganhou `retirada`, que é provocado por um evento do usuário, e **não** ganhou `vencida`, que só depende da passagem do tempo. O diagrama previu certo o critério: entra no enum o que alguém provoca.

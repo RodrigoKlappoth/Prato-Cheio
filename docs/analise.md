@@ -20,7 +20,7 @@ O que ainda não sabemos, e como cada coisa se resolve. Nem toda incerteza vira 
 | INC-02 | O que a vigilância sanitária exige *por norma* e o que é interpretação nossa da fala da Renata | Conversa com a vigilância + leitura da norma, antes da Unidade 3 |
 | INC-03 | Se "quem chega primeiro leva" (RN-02) é aceito pelas ONGs ou favorece quem tem alguém sempre olhando o celular | Conversa com 3 ONGs da rede; se for problema, vira história de fila/rodízio na U2 |
 | INC-04 | Volume real de doações por dia — define se uma lista única em tela basta ou se precisa de filtro/busca | Só em operação; medir nas duas primeiras semanas |
-| INC-05 | O que acontece quando a ONG aceita e não retira | Fora do escopo da U1; entra no backlog como história de cancelamento/no-show |
+| INC-05 | O que acontece quando a ONG aceita e não retira | Fora do escopo da U1; entra no backlog como história de cancelamento/no-show. **Respondida na U2:** a ONG cancela o aceite e a doação volta para a lista (H-07, [ADR 0008](adr/0008-retirada-confirmada-e-cancelamento-do-aceite.md)) |
 
 ## Stakeholders
 
@@ -92,7 +92,8 @@ Regras que ninguém enuncia — estão no hábito de quem opera. Aqui viram fras
 |---|---|---|---|---|
 | RN-01 | "A gente anota mais ou menos o que sobrou" | Toda doação publicada deve informar **tipo, quantidade e prazo de retirada**. Faltando qualquer um dos três, o sistema recusa a publicação e informa quais campos faltam. | `tests/doacoes.test.js` → "recusa doação sem os campos obrigatórios" | Implementada |
 | RN-02 | "Quem chegar primeiro leva" | Uma doação **aceita por uma ONG deixa de estar disponível para as demais**: muda para o estado *aceita*, registra qual ONG aceitou e sai da lista de disponíveis. Uma segunda tentativa de aceite é recusada, informando quem já aceitou. | `tests/doacoes.test.js` → "remove a doação da lista de disponíveis depois de aceita" e "recusa aceitar uma doação que já foi aceita por outra ONG" | Implementada |
-| RN-03 | "Se passou do horário, aquilo não presta mais" | Doação cujo **prazo de retirada já passou não aparece na lista de disponíveis e não pode ser aceita**. A tentativa de aceite é recusada com o motivo "prazo de retirada vencido". | Teste a escrever: publicar doação com prazo no passado → não aparece em `GET /api/doacoes` e `POST /api/doacoes/:id/aceitar` responde 400 | **Pendente** — vira a história H-03 |
+| RN-03 | "Se passou do horário, aquilo não presta mais" | Doação cujo **prazo de retirada já passou não aparece na lista de disponíveis e não pode ser aceita**. A tentativa de aceite é recusada com o motivo "prazo de retirada vencido". O limite é o dia de hoje em São Paulo, inclusive: o que vence hoje ainda circula. Publicar com prazo no passado também é recusado. | `tests/prazo.test.js` → "CA-03.1 — não mostra na lista a doação com prazo de ontem", "CA-03.2 — recusa o aceite de uma doação com o prazo vencido" e os dois testes do CA-03.3 | Implementada na U2 ([ADR 0007](adr/0007-agora-como-parametro-e-dia-de-sao-paulo.md)) |
+| RN-05 | "Se a ONG desistir, ela avisa no grupo e o doador publica de novo" | **Só a ONG que aceitou** confirma a retirada ou cancela o aceite. O cancelamento devolve a doação para `disponivel` e apaga o aceite; a retirada confirmada é o fim da linha e não pode ser desfeita. | `tests/historico.test.js` → "devolve a doação para a lista das outras ONGs, sem rastro do aceite", "recusa cancelar o aceite de outra ONG" e "recusa cancelar depois de a retirada estar confirmada" | Implementada na U2 ([ADR 0008](adr/0008-retirada-confirmada-e-cancelamento-do-aceite.md)) |
 | RN-04 | "Essas ONGs aí eu conheço" | Só **ONG com conta aprovada pela coordenação da sua cidade** aceita doações. ONG com conta pendente ou recusada entra e vê a lista, mas o aceite é recusado com o motivo, e a doação continua *disponivel*. | `tests/aprovacao.test.js` → "deixa a ONG pendente ver a lista, mas recusa o aceite dela" e "recusa o aceite da ONG que a coordenação recusou" | Implementada na U2 ([ADR 0006](adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md)) |
 
 **Contraexemplo do que não vale como regra:** "o sistema deve ser rápido", "tratar os casos especiais". Não têm sujeito, condição nem efeito — ninguém consegue dizer se foram cumpridas.
@@ -103,12 +104,15 @@ Regras que ninguém enuncia — estão no hábito de quem opera. Aqui viram fras
 |---|---|---|
 | H-01 | Como **doador**, quero publicar uma doação informando tipo, quantidade e prazo de retirada, para que as ONGs saibam da comida antes que ela vença. | **N**egotiable é fraca: os três campos vêm de RN-01/CONF-01 e não são negociáveis com o time — negociá-los significa reabrir o conflito com a vigilância. **S**mall e **T**estable estão ok. |
 | H-02 | Como **ONG**, quero aceitar uma doação disponível e que ela saia da lista das demais, para que duas ONGs não deslocem voluntários para a mesma comida. | **I**ndependent falha: sem H-01 não existe doação para aceitar, então H-02 não entra em sprint sozinha. Podia ser fatiada (aceitar / sumir da lista / bloquear 2º aceite), mas as três partes sem as outras entregam meia regra — mantivemos junta assumindo o custo. |
-| H-03 | Como **ONG**, quero que doações com prazo de retirada vencido não apareçam nem possam ser aceitas, para não deslocar voluntário para comida que não pode mais ser distribuída. | **T**estable exige uma decisão que ainda não tomamos: comparar o prazo com o relógio do sistema torna o teste dependente da data em que ele roda. Antes de implementar, o "agora" precisa ser injetável (ver nota abaixo). **E**stimable sofre com isso. |
+| H-03 | Como **ONG**, quero que doações com prazo de retirada vencido não apareçam nem possam ser aceitas, para não deslocar voluntário para comida que não pode mais ser distribuída. | **T**estable exigia uma decisão que a Unidade 1 não tomou: comparar o prazo com o relógio do sistema torna o teste dependente da data em que ele roda. Antes de implementar, o "agora" precisava ser injetável (ver nota abaixo). **E**stimable sofria com isso. **Resolvido na U2** pela decisão D1, registrada no [ADR 0007](adr/0007-agora-como-parametro-e-dia-de-sao-paulo.md). |
 | H-04 *(U2)* | Como **doador ou ONG**, quero entrar com meu e-mail e senha, para que o sistema saiba quem publicou e quem aceitou cada doação e ninguém aceite em nome de uma ONG. | **S**mall é a mais fraca: junta cadastro, login, sessão e a regra de quem pode o quê. Não fatiamos porque qualquer parte sozinha deixa o sistema tão aberto quanto antes. Nasce da Decisão de análise e do ADR 0003. |
 | H-05 *(U2)* | Como **ONG**, quero criar minha própria conta informando a minha cidade, para entrar na rede sem esperar que alguém da equipe de desenvolvimento me cadastre. | **I**ndependent falha, e de propósito: a conta nasce pendente, então sem a H-06 ninguém a aprova e ela nunca aceita uma doação. **V**aluable sozinha é fraca pelo mesmo motivo. As duas entram juntas. Nasce do [ADR 0006](adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md). |
 | H-06 *(U2)* | Como **coordenação da minha cidade**, quero ver os pedidos de conta de ONG da minha cidade e aprovar ou recusar cada um, para que só ONGs que eu conheço aceitem doações. | **S**mall é a mais fraca: traz um papel novo, uma tela nova e um estado novo na conta. Não fatiamos porque aprovar sem o cadastro da H-05 não tem o que aprovar. **T**estable é forte: cada decisão fica gravada com quem decidiu e quando. |
+| H-07 *(U2)* | Como **ONG**, quero confirmar a retirada ou cancelar o aceite, e **como doador**, quero ver o que aconteceu com o que publiquei, para que a comida que uma ONG não vai buscar volte para a lista em vez de vencer reservada. | **I**ndependent é fraca: depende de H-01 e H-02 existirem. **V**aluable é a mais forte das três partes juntas, e é por isso que não fatiamos: o cancelamento sozinho resolveria o risco da ONG que não retira, mas sem a confirmação de retirada o OBJ-01 continuaria sem poder ser medido, e sem o histórico ninguém encontraria a doação para cancelar. Nasce da decisão D2 e do [ADR 0008](adr/0008-retirada-confirmada-e-cancelamento-do-aceite.md). |
 
 **Nota de implementação da H-03 (dívida já identificada):** o fixture `SOPA` em `tests/doacoes.test.js` usa `validade: '2026-08-01'` — uma data que **já passou**. No dia em que RN-03 for implementada, os testes hoje verdes de H-01 e H-02 quebram em bloco, porque a doação de teste passa a nascer vencida. A correção vem junto com a história: o prazo passa a ser calculado relativamente (`hoje + 1 dia`) ou o "agora" vira parâmetro das funções de `src/doacoes.js`. Registrar isso agora evita descobrir na véspera da entrega.
+
+> **Dívida paga na Unidade 2, e a previsão estava certa.** Implementamos a RN-03 e corrigimos o fixture no mesmo passo, então não vimos a quebra acontecer — fomos medi-la de propósito. Com a RN-03 valendo e o fixture de volta para `validade: '2026-08-01'`, **23 testes quebram, em 4 dos 6 arquivos**: a doação de teste nasce vencida, não aparece na lista e não pode ser aceita, então tudo que depende dela cai. Fizemos as **duas** correções que a nota propunha, e não uma: o "agora" virou parâmetro ([ADR 0007](adr/0007-agora-como-parametro-e-dia-de-sao-paulo.md)) **e** o prazo passou a ser relativo. O fixture, que estava copiado nos três arquivos de teste, virou um só em `tests/apoio.js`, calculado por `diaNaRede(1)`. Ter a dívida escrita na Unidade 1 transformou o que seria uma tarde de confusão em uma linha de plano.
 
 **Fora do escopo da Unidade 1 (backlog):** autenticação de doador e de ONG, notificação às ONGs, cancelamento de aceite/no-show, campos opcionais de conservação, relatório de impacto para o patrocinador. Na Unidade 2, a autenticação saiu desta lista e virou a H-04 ([ADR 0003](adr/0003-identificacao-por-email-e-senha.md)), e a entrada de ONGs na rede virou as histórias H-05 e H-06 ([ADR 0006](adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md)).
 
@@ -168,31 +172,91 @@ Cada critério aponta para o teste que o prova. Nome do teste entre aspas = exis
   **Então** o sistema responde `401` e a doação continua `disponivel`.
   → "recusa aceite de quem não entrou como ONG". Na U1 o teste era "recusa aceitar sem informar a ONG" e esperava `400`: escrevê-lo revelou que a rota preenchia `"ONG"` como nome padrão, e o padrão foi removido. Com a H-04, o nome da ONG passou a vir da conta, e não do que é digitado.
 
-### H-03 — Doação vencida não circula (RN-03) — pendente
+### H-03 — Doação vencida não circula (RN-03) — Unidade 2
+
+Testes em `tests/prazo.test.js`.
 
 - **CA-03.1 — vencida não aparece**
   **Dado** que existe uma doação cujo prazo de retirada foi ontem,
   **Quando** a ONG consulta a lista de disponíveis,
-  **Então** essa doação não aparece.
-  → *(a escrever)*
+  **Então** essa doação não aparece — mas continua gravada, e com o estado que tinha: a rastreabilidade prometida à vigilância depende de o registro não desaparecer.
+  → "CA-03.1 — não mostra na lista a doação com prazo de ontem"
 
 - **CA-03.2 — vencida não pode ser aceita**
   **Dado** uma doação com prazo de retirada vencido,
   **Quando** uma ONG tenta aceitá-la,
   **Então** o sistema responde `400` com o motivo "prazo de retirada vencido" e a doação **não** muda para `aceita`.
-  → *(a escrever)*
+  → "CA-03.2 — recusa o aceite de uma doação com o prazo vencido"
 
 - **CA-03.3 — o limite é inclusivo**
   **Dado** uma doação cujo prazo de retirada é **hoje**,
   **Quando** a ONG consulta a lista,
   **Então** a doação aparece e pode ser aceita normalmente.
-  → *(a escrever)* — é a fronteira da regra; sem esse teste, "vencida" e "vence hoje" viram a mesma coisa por acidente
+  → "CA-03.3 — o limite é hoje, inclusive: o que vence hoje aparece e é aceito" e "CA-03.3 — 'vence hoje' e 'venceu ontem' não viram a mesma coisa". É a fronteira da regra: sem esse teste, "vencida" e "vence hoje" viram a mesma coisa por acidente. São dois testes porque um prova que hoje passa e o outro prova que hoje e ontem são tratados de forma diferente **na mesma lista**.
 
 - **CA-03.4 — não se publica algo já vencido**
   **Dado** que sou doador e informei um prazo de retirada no passado,
   **Quando** tento publicar,
-  **Então** o sistema responde `400` com "prazo de retirada já vencido".
-  → *(a escrever)*
+  **Então** o sistema responde `400` com "prazo de retirada já vencido" e nada é gravado.
+  → "CA-03.4 — recusa publicar com o prazo no passado" e "CA-03.4 — recusa publicar com um prazo que não é um dia de verdade", que cobre `31/12/2026`, `2026-13-01`, `2026-02-31`, `amanhã` e `2026-2-3`
+
+- **CA-03.5 — "hoje" é o dia de São Paulo, não o do servidor** *(novo na U2)*
+  **Dado** que a função roda em UTC ([ADR 0002](adr/0002-hospedagem-na-vercel.md)) e são 23h de um dia em São Paulo,
+  **Quando** a regra pergunta que dia é hoje,
+  **Então** a resposta é o dia em São Paulo, e não o dia seguinte que o relógio do servidor já marca.
+  → "às 23h de São Paulo ainda é o dia anterior ao do relógio em UTC". Sem este critério, uma doação publicada no fim do expediente para retirar "hoje" nasceria vencida ([ADR 0007](adr/0007-agora-como-parametro-e-dia-de-sao-paulo.md)).
+
+### H-07 — Retirada confirmada e aceite cancelado (RN-05, ADR 0008) — Unidade 2
+
+Testes em `tests/historico.test.js`.
+
+- **CA-07.1 — o doador vê o que aconteceu com o que publicou**
+  **Dado** que publiquei duas doações e uma ONG aceitou uma delas,
+  **Quando** abro minhas doações recentes,
+  **Então** vejo as duas, a mais recente primeiro, uma como `aceita` com o nome da ONG e a outra como `disponivel`.
+  → "o doador vê o que publicou, com o estado e quem levou"
+
+- **CA-07.2 — a ONG vê só o que ela aceitou**
+  **Dado** que duas ONGs aceitaram uma doação cada,
+  **Quando** cada uma abre o seu histórico,
+  **Então** cada uma vê só a doação que ela mesma aceitou.
+  → "a ONG vê só o que ela mesma aceitou"
+
+- **CA-07.3 — confirmar a retirada grava a hora que o OBJ-01 mede**
+  **Dado** uma doação que aceitei,
+  **Quando** confirmo a retirada,
+  **Então** o sistema responde `200`, a doação passa a `retirada`, e o banco guarda `aceita_em` e `retirada_em` — os dois instantes que, com o `criada_em`, fecham a conta do OBJ-01.
+  → "registra a retirada com a hora, que é o que o OBJ-01 mede"
+
+- **CA-07.4 — retirada é o fim da linha**
+  **Dado** uma doação com retirada confirmada,
+  **Quando** outra ONG tenta aceitá-la, ou eu tento confirmar de novo, ou tento cancelar,
+  **Então** ela não volta para a lista e as três tentativas são recusadas com o motivo.
+  → "a doação retirada não volta para a lista nem pode ser aceita por outra ONG", "recusa confirmar a mesma retirada duas vezes" e "recusa cancelar depois de a retirada estar confirmada"
+
+- **CA-07.5 — cancelar devolve a doação para as outras ONGs**
+  **Dado** uma doação que aceitei e não vou buscar,
+  **Quando** cancelo o aceite,
+  **Então** ela volta a `disponivel` sem rastro do aceite (sem ONG, sem `ong_id`, sem `aceita_em`), aparece na lista das outras ONGs com o mesmo `id` e outra ONG consegue aceitá-la.
+  → "devolve a doação para a lista das outras ONGs, sem rastro do aceite"
+
+- **CA-07.6 — só quem aceitou mexe no aceite**
+  **Dado** uma doação aceita pelo "Banco de Alimentos",
+  **Quando** a "Casa de Apoio" tenta confirmar a retirada ou cancelar, ou o doador tenta confirmar,
+  **Então** o sistema responde `403` e a doação continua `aceita` com a ONG original.
+  → "recusa confirmar a retirada de uma doação que não é sua", "recusa cancelar o aceite de outra ONG" e "recusa o doador confirmar a retirada da própria doação"
+
+- **CA-07.7 — doação que ninguém aceitou, que não existe, e sem login**
+  **Dado** uma doação `disponivel`, um id inexistente, um id que não é número, ou nenhum login,
+  **Quando** tento confirmar a retirada ou cancelar,
+  **Então** o sistema responde `400` com "não está aceita por ninguém", `400` com "não encontrada", `400` com "id de doação inválido" e `401` sem login.
+  → "recusa confirmar a retirada de uma doação que ninguém aceitou" e "recusa cancelar e confirmar uma doação que não existe, e com id que não é número"
+
+- **CA-07.8 — a coordenação não tem histórico de doações**
+  **Dado** que entrei como coordenação,
+  **Quando** abro as doações recentes,
+  **Então** o sistema responde `403`: a coordenação decide sobre contas, e doação não tem cidade para ela filtrar.
+  → "a coordenação não tem histórico de doações, porque a doação não tem cidade"
 
 ### H-04 — Doador e ONG entram com e-mail e senha (RN-02, ADR 0003) — Unidade 2
 
@@ -325,7 +389,7 @@ Testes em `tests/aprovacao.test.js`.
 | Risco | Probabilidade | Impacto | Mitigação |
 |---|---|---|---|
 | A vigilância sanitária exigir registro de conservação e horário de preparo que a primeira versão não coleta (decisão CONF-01) | Média | Alto | Levar o critério de CONF-01 a uma conversa com a vigilância antes da Unidade 3; campos opcionais já previstos no modelo |
-| Uma ONG aceita a doação e não retira. Pela RN-02 a doação some da lista das outras no instante do aceite e não existe cancelamento (INC-05): a comida fica reservada para quem não vem e vence — exatamente o que OBJ-02 mede | Média | Alto | **U1, sem código:** combinado com a Marta — a ONG que desistir avisa no grupo e o doador publica de novo. **U2, história no backlog:** "ONG cancela o aceite" e liberação automática — aceite sem retirada confirmada em 4 h (o limite de OBJ-01) volta para `disponivel`; para isso o modelo passa a registrar `aceita_em` e `retirada_em`, os mesmos campos que hoje faltam para medir OBJ-01 |
+| Uma ONG aceita a doação e não retira. Pela RN-02 a doação some da lista das outras no instante do aceite e não existe cancelamento (INC-05): a comida fica reservada para quem não vem e vence — exatamente o que OBJ-02 mede | Média | Alto | **U1, sem código:** combinado com a Marta — a ONG que desistir avisa no grupo e o doador publica de novo. **U2, implementado (H-07, [ADR 0008](adr/0008-retirada-confirmada-e-cancelamento-do-aceite.md)):** a ONG cancela o aceite e a doação volta para `disponivel` na hora, e o modelo passou a registrar `aceita_em` e `retirada_em` — os dois campos que a U1 já tinha previsto por nome. **Risco reduzido, não fechado:** a ONG que não cancelar nem retirar continua segurando a comida até vencer. Só a liberação automática fecha, e ela depende de tarefa agendada |
 
 ## Hipótese e experimento
 
@@ -372,5 +436,6 @@ O que geramos com IA, o que verificamos e o que alteramos.
 | Teste do CA-02.5 ("recusa aceitar sem informar a ONG"), remoção do nome padrão `"ONG"` na rota de aceite, segundo risco da tabela e atualização do README | Claude Code (Anthropic) | Revisamos o teste novo e a linha alterada na rota, rodamos `npm test` (8 passando) e ajustamos a redação do segundo risco |
 | História H-04, critérios CA-04.1 a CA-04.8 e atualização do CA-02.5 | Claude Code (Anthropic) | Escolhemos e-mail e senha como identificação; revisamos os critérios e conferimos cada um contra o teste correspondente |
 | Histórias H-05 e H-06, regra RN-04, critérios CA-05.1 a CA-06.6 e reescrita do CA-04.2 | Claude Code (Anthropic) | A decisão já estava tomada por nós no ADR 0006; conferimos cada critério contra o nome do teste em `tests/aprovacao.test.js` e verificamos que os 13 testes novos têm dente, desligando a regra do aceite e vendo 3 deles falharem |
+| História H-07, regras RN-03 e RN-05, critérios CA-03.1 a CA-03.5 e CA-07.1 a CA-07.8 | Claude Code (Anthropic) | Escolhemos as alternativas das decisões D1 e D2; medimos a quebra que a nota de implementação da H-03 previa, em vez de escrever o número de memória (23 testes em 4 arquivos); conferimos o fuso de São Paulo com datas reais antes de aceitar a regra |
 
 

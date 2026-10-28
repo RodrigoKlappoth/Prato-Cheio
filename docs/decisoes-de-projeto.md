@@ -53,6 +53,21 @@ Cada linha liga uma decisão a um requisito ou a um risco da nossa análise da U
 | D3 · aviso às ONGs | As ONGs querem "saber com antecedência o que vem, em que quantidade e até quando pode ser retirado" | Stakeholders, detalhamento | O aviso precisa levar essas três informações, em qualquer das alternativas |
 | D3 · aviso às ONGs | "Quem chega primeiro leva" pode favorecer "quem tem alguém sempre olhando o celular" | INC-03 | O jeito de avisar muda quem vê primeiro, e por isso muda quem leva a doação |
 
+## 4. O que decidimos depois, na entrega 2
+
+Esta parte foi escrita em 2026-10-27 e não faz parte da atividade original da Unidade 2: ela registra o que aconteceu com as três decisões acima.
+
+| Decisão | Situação | Alternativa escolhida | Registro |
+|---|---|---|---|
+| D1 · como o sistema sabe que o prazo venceu | **Tomada e implementada** | **A** — o "agora" vira parâmetro das regras, e "hoje" é o dia em São Paulo | [ADR 0007](adr/0007-agora-como-parametro-e-dia-de-sao-paulo.md), história H-03 |
+| D2 · o que acontece com a doação aceita e não retirada | **Tomada e implementada** | **B** — cancelamento manual pela ONG que aceitou, junto com a confirmação da retirada. A liberação automática (A) fica como passo seguinte, porque depende de tarefa agendada | [ADR 0008](adr/0008-retirada-confirmada-e-cancelamento-do-aceite.md), história H-07 |
+| D3 · como as ONGs ficam sabendo de uma doação nova | **Em aberto** | — | A tabela de trade-offs da seção 2 continua valendo |
+
+Duas observações sobre a tabela de trade-offs e a justificativa acima, agora que implementamos:
+
+- **A D1 foi decidida pelo critério que a própria análise apontou.** O desempate não veio de "qual código fica mais curto", e sim do CA-03.3: com o relógio lido por dentro da regra, o teste do limite exato de hoje não existe de forma honesta. A nota de implementação da H-03 propunha prazo relativo **ou** "agora" como parâmetro; fizemos os dois, porque cada um resolve uma coisa diferente — o parâmetro deixa a regra testável, e o prazo relativo tira a data fixa dos fixtures.
+- **A D2 mudou de forma em relação ao que escrevemos aqui.** A alternativa A descrevia a liberação automática em 4 horas, e nós a descartamos por um motivo que não estava nesta tabela: a função da Vercel só acorda quando chega uma requisição, então "4 horas depois" precisa de um serviço que rode no tempo. A tabela da seção 1 comparava as duas alternativas sem olhar essa dependência de infraestrutura, e foi ela que decidiu.
+
 ## Decisões já tomadas
 
 Estas decisões nós já tomamos antes desta atividade. Cada uma tem seu ADR, com alternativas, consequências e riscos.
