@@ -122,7 +122,7 @@ Ou seja: o diagrama de sequência melhorou nossa *comunicação*, e o de estados
 ## 6. Entrega
 
 - **Repositório:** https://github.com/RodrigoKlappoth/Prato-Cheio
-- **Pull Request revisado:** _(colar o link do PR aqui depois de abri-lo)_
+- **Pull Request revisado:** https://github.com/RodrigoKlappoth/Prato-Cheio/pull/11
 - **Uso de IA:** a primeira versão dos dois diagramas foi gerada com Claude (Anthropic). O grupo revisou cada elemento contra o código e os documentos do repositório, identificou os três problemas acima e reescreveu os dois diagramas. Todo o conteúdo das seções 1, 3 e 5 foi discutido e redigido pelo grupo.
 
 ---
