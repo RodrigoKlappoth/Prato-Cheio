@@ -93,6 +93,7 @@ Regras que ninguém enuncia — estão no hábito de quem opera. Aqui viram fras
 | RN-01 | "A gente anota mais ou menos o que sobrou" | Toda doação publicada deve informar **tipo, quantidade e prazo de retirada**. Faltando qualquer um dos três, o sistema recusa a publicação e informa quais campos faltam. | `tests/doacoes.test.js` → "recusa doação sem os campos obrigatórios" | Implementada |
 | RN-02 | "Quem chegar primeiro leva" | Uma doação **aceita por uma ONG deixa de estar disponível para as demais**: muda para o estado *aceita*, registra qual ONG aceitou e sai da lista de disponíveis. Uma segunda tentativa de aceite é recusada, informando quem já aceitou. | `tests/doacoes.test.js` → "remove a doação da lista de disponíveis depois de aceita" e "recusa aceitar uma doação que já foi aceita por outra ONG" | Implementada |
 | RN-03 | "Se passou do horário, aquilo não presta mais" | Doação cujo **prazo de retirada já passou não aparece na lista de disponíveis e não pode ser aceita**. A tentativa de aceite é recusada com o motivo "prazo de retirada vencido". | Teste a escrever: publicar doação com prazo no passado → não aparece em `GET /api/doacoes` e `POST /api/doacoes/:id/aceitar` responde 400 | **Pendente** — vira a história H-03 |
+| RN-04 | "Essas ONGs aí eu conheço" | Só **ONG com conta aprovada pela coordenação da sua cidade** aceita doações. ONG com conta pendente ou recusada entra e vê a lista, mas o aceite é recusado com o motivo, e a doação continua *disponivel*. | `tests/aprovacao.test.js` → "deixa a ONG pendente ver a lista, mas recusa o aceite dela" e "recusa o aceite da ONG que a coordenação recusou" | Implementada na U2 ([ADR 0006](adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md)) |
 
 **Contraexemplo do que não vale como regra:** "o sistema deve ser rápido", "tratar os casos especiais". Não têm sujeito, condição nem efeito — ninguém consegue dizer se foram cumpridas.
 
@@ -104,10 +105,12 @@ Regras que ninguém enuncia — estão no hábito de quem opera. Aqui viram fras
 | H-02 | Como **ONG**, quero aceitar uma doação disponível e que ela saia da lista das demais, para que duas ONGs não deslocem voluntários para a mesma comida. | **I**ndependent falha: sem H-01 não existe doação para aceitar, então H-02 não entra em sprint sozinha. Podia ser fatiada (aceitar / sumir da lista / bloquear 2º aceite), mas as três partes sem as outras entregam meia regra — mantivemos junta assumindo o custo. |
 | H-03 | Como **ONG**, quero que doações com prazo de retirada vencido não apareçam nem possam ser aceitas, para não deslocar voluntário para comida que não pode mais ser distribuída. | **T**estable exige uma decisão que ainda não tomamos: comparar o prazo com o relógio do sistema torna o teste dependente da data em que ele roda. Antes de implementar, o "agora" precisa ser injetável (ver nota abaixo). **E**stimable sofre com isso. |
 | H-04 *(U2)* | Como **doador ou ONG**, quero entrar com meu e-mail e senha, para que o sistema saiba quem publicou e quem aceitou cada doação e ninguém aceite em nome de uma ONG. | **S**mall é a mais fraca: junta cadastro, login, sessão e a regra de quem pode o quê. Não fatiamos porque qualquer parte sozinha deixa o sistema tão aberto quanto antes. Nasce da Decisão de análise e do ADR 0003. |
+| H-05 *(U2)* | Como **ONG**, quero criar minha própria conta informando a minha cidade, para entrar na rede sem esperar que alguém da equipe de desenvolvimento me cadastre. | **I**ndependent falha, e de propósito: a conta nasce pendente, então sem a H-06 ninguém a aprova e ela nunca aceita uma doação. **V**aluable sozinha é fraca pelo mesmo motivo. As duas entram juntas. Nasce do [ADR 0006](adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md). |
+| H-06 *(U2)* | Como **coordenação da minha cidade**, quero ver os pedidos de conta de ONG da minha cidade e aprovar ou recusar cada um, para que só ONGs que eu conheço aceitem doações. | **S**mall é a mais fraca: traz um papel novo, uma tela nova e um estado novo na conta. Não fatiamos porque aprovar sem o cadastro da H-05 não tem o que aprovar. **T**estable é forte: cada decisão fica gravada com quem decidiu e quando. |
 
 **Nota de implementação da H-03 (dívida já identificada):** o fixture `SOPA` em `tests/doacoes.test.js` usa `validade: '2026-08-01'` — uma data que **já passou**. No dia em que RN-03 for implementada, os testes hoje verdes de H-01 e H-02 quebram em bloco, porque a doação de teste passa a nascer vencida. A correção vem junto com a história: o prazo passa a ser calculado relativamente (`hoje + 1 dia`) ou o "agora" vira parâmetro das funções de `src/doacoes.js`. Registrar isso agora evita descobrir na véspera da entrega.
 
-**Fora do escopo da Unidade 1 (backlog):** autenticação de doador e de ONG, notificação às ONGs, cancelamento de aceite/no-show, campos opcionais de conservação, relatório de impacto para o patrocinador. Na Unidade 2, a autenticação saiu desta lista e virou a H-04 ([ADR 0003](adr/0003-identificacao-por-email-e-senha.md)).
+**Fora do escopo da Unidade 1 (backlog):** autenticação de doador e de ONG, notificação às ONGs, cancelamento de aceite/no-show, campos opcionais de conservação, relatório de impacto para o patrocinador. Na Unidade 2, a autenticação saiu desta lista e virou a H-04 ([ADR 0003](adr/0003-identificacao-por-email-e-senha.md)), e a entrada de ONGs na rede virou as histórias H-05 e H-06 ([ADR 0006](adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md)).
 
 ## Critérios de aceite
 
@@ -201,11 +204,11 @@ Testes em `tests/contas.test.js`, exceto quando indicado.
   **Então** o sistema responde `201`, já me deixa conectado como doador e a resposta não traz a senha.
   → "cria a conta e já deixa o doador conectado"
 
-- **CA-04.2 — o cadastro público só cria doador**
-  **Dado** um pedido de cadastro que diz ser de ONG,
+- **CA-04.2 — o cadastro da tela cria doador ou ONG, e mais nada**
+  **Dado** um pedido de cadastro que diz ser de coordenação,
   **Quando** ele é enviado,
-  **Então** a conta criada é de doador. Conta de ONG só é criada pela coordenação (`npm run ong:criar`).
-  → "cria sempre conta de doador, mesmo que o pedido diga ONG"
+  **Então** a conta criada é de doador, sem cidade.
+  → "cria conta de doador quando o pedido pede um papel que a tela não cria". Até o [ADR 0006](adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md), este critério dizia que o cadastro da tela criava **só** doador, e o teste se chamava "cria sempre conta de doador, mesmo que o pedido diga ONG". O ADR 0006 previu esta mudança: a tela passou a criar ONG pendente (H-05), e o que o critério protege agora é a fronteira que sobrou — ninguém vira coordenação preenchendo o formulário.
 
 - **CA-04.3 — cadastro inválido é recusado com o motivo**
   **Dado** um e-mail que já tem cadastro, ou uma senha com menos de 8 caracteres,
@@ -242,6 +245,80 @@ Testes em `tests/contas.test.js`, exceto quando indicado.
   **Quando** saio, ou quando se passam 30 dias,
   **Então** a próxima ação pede login de novo.
   → "sair encerra a sessão" e "a sessão expira depois de 30 dias"
+
+### H-05 — A ONG cria a própria conta (RN-04, ADR 0006) — Unidade 2
+
+Testes em `tests/aprovacao.test.js`.
+
+- **CA-05.1 — a conta de ONG nasce pendente**
+  **Dado** que informei nome, e-mail, senha e a cidade da minha ONG,
+  **Quando** crio a conta pela tela,
+  **Então** o sistema responde `201`, a conta vem com papel `ong` e situação `pendente`, e eu já fico conectada.
+  → "cria a conta pendente e já deixa a ONG entrar"
+
+- **CA-05.2 — ONG sem cidade é recusada**
+  **Dado** um cadastro de ONG com a cidade em branco (ou só com espaços),
+  **Quando** tento criar a conta,
+  **Então** o sistema responde `400` nomeando *cidade*, e nenhuma conta é gravada.
+  → "recusa o cadastro de ONG sem cidade, porque a coordenação é por cidade". A cidade é obrigatória porque é ela que define **qual** coordenação decide sobre a conta.
+
+- **CA-05.3 — pendente vê, mas não aceita**
+  **Dado** que minha conta de ONG está pendente e existe uma doação disponível,
+  **Quando** consulto a lista e tento aceitar,
+  **Então** a lista mostra a doação, o aceite responde `403` dizendo que a conta aguarda a aprovação da coordenação da minha cidade, e a doação continua `disponivel`.
+  → "deixa a ONG pendente ver a lista, mas recusa o aceite dela"
+
+- **CA-05.4 — recusada também não aceita**
+  **Dado** que a coordenação recusou minha conta,
+  **Quando** tento aceitar uma doação,
+  **Então** o sistema responde `403` dizendo que a coordenação da minha cidade não aprovou a conta.
+  → "recusa o aceite da ONG que a coordenação recusou"
+
+- **CA-05.5 — a ONG cadastrada pela coordenação não espera nada**
+  **Dado** que a coordenação criou a conta pelo terminal (`npm run ong:criar`),
+  **Quando** a ONG entra,
+  **Então** a conta já está `aprovada` e ela aceita doações na hora.
+  → "nasce aprovada e aceita doações na hora". É a regra "as ONGs que já existem continuam aprovadas" do ADR 0006.
+
+### H-06 — A coordenação da cidade aprova ou recusa (RN-04, ADR 0006) — Unidade 2
+
+Testes em `tests/aprovacao.test.js`.
+
+- **CA-06.1 — cada coordenação vê só a sua cidade**
+  **Dado** que coordeno Santo André e existem um pedido pendente em Santo André, um pedido pendente em Diadema e uma ONG já aprovada em Santo André,
+  **Quando** abro os pedidos,
+  **Então** vejo exatamente um pedido: o pendente de Santo André.
+  → "mostra só os pedidos pendentes da cidade de quem coordena"
+
+- **CA-06.2 — aprovar libera o aceite e deixa rastro**
+  **Dado** um pedido pendente da minha cidade,
+  **Quando** aprovo,
+  **Então** o sistema responde `200` com a situação `aprovada`, a ONG passa a aceitar doações **sem precisar entrar de novo**, e o banco guarda quem aprovou e quando.
+  → "aprovar deixa a ONG aceitar e registra quem aprovou e quando"
+
+- **CA-06.3 — a aprovação pode ser desfeita**
+  **Dado** uma ONG que eu já aprovei,
+  **Quando** eu a recuso,
+  **Então** ela volta a não aceitar doações, e a doação que ela tentar aceitar continua `disponivel`.
+  → "desfaz uma aprovação, e a ONG volta a não aceitar". É a saída prevista no ADR 0006 para o risco "um coordenador aprova quem não é ONG".
+
+- **CA-06.4 — só a coordenação decide**
+  **Dado** que entrei como doador ou como ONG,
+  **Quando** tento aprovar um pedido ou abrir a lista de pedidos,
+  **Então** o sistema responde `403` e o pedido continua `pendente`.
+  → "recusa quem não é da coordenação, mesmo entrando como doador ou ONG"
+
+- **CA-06.5 — ninguém decide fora da sua cidade**
+  **Dado** que coordeno Santo André e o pedido é de Diadema,
+  **Quando** tento aprovar,
+  **Então** o sistema responde `403`, a mensagem nomeia as duas cidades, e o pedido continua `pendente`.
+  → "recusa aprovar uma ONG de outra cidade"
+
+- **CA-06.6 — pedido que não existe, conta que não é ONG, e sem login**
+  **Dado** o id de um doador, um id inexistente, um id que não é número, ou nenhum login,
+  **Quando** tento aprovar,
+  **Então** o sistema responde `400` com "conta de ONG não encontrada" nos dois primeiros, `400` com "id de conta inválido" no terceiro e `401` sem login — e nada muda.
+  → "recusa aprovar uma conta que não é de ONG", "recusa aprovar uma conta que não existe e um id que não é número" e "recusa aprovar e ver os pedidos sem entrar"
 
 ## Riscos
 
@@ -294,5 +371,6 @@ O que geramos com IA, o que verificamos e o que alteramos.
 | Rascunho das histórias H-01 a H-03, dos critérios de aceite e do protocolo do experimento | Claude (Anthropic) | Verificamos toda a informação, alteramos alguns pontos das histórias, excluimos alguns critérios |
 | Teste do CA-02.5 ("recusa aceitar sem informar a ONG"), remoção do nome padrão `"ONG"` na rota de aceite, segundo risco da tabela e atualização do README | Claude Code (Anthropic) | Revisamos o teste novo e a linha alterada na rota, rodamos `npm test` (8 passando) e ajustamos a redação do segundo risco |
 | História H-04, critérios CA-04.1 a CA-04.8 e atualização do CA-02.5 | Claude Code (Anthropic) | Escolhemos e-mail e senha como identificação; revisamos os critérios e conferimos cada um contra o teste correspondente |
+| Histórias H-05 e H-06, regra RN-04, critérios CA-05.1 a CA-06.6 e reescrita do CA-04.2 | Claude Code (Anthropic) | A decisão já estava tomada por nós no ADR 0006; conferimos cada critério contra o nome do teste em `tests/aprovacao.test.js` e verificamos que os 13 testes novos têm dente, desligando a regra do aceite e vendo 3 deles falharem |
 
 

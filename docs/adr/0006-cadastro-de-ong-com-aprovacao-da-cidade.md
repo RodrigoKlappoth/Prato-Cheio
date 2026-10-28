@@ -1,7 +1,7 @@
 # ADR 0006 — Conta de ONG por cadastro com aprovação da coordenação da cidade
 
-- **Data:** 2026-10-08
-- **Status:** aceito, a implementar antes de a rede atender a primeira cidade nova. Substitui em parte o [ADR 0003](0003-identificacao-por-email-e-senha.md): a regra "a conta de ONG é criada pela coordenação".
+- **Data:** 2026-10-08 · **implementado em** 2026-10-27, nas histórias H-05 e H-06
+- **Status:** aceito e implementado. Substitui em parte o [ADR 0003](0003-identificacao-por-email-e-senha.md): a regra "a conta de ONG é criada pela coordenação".
 
 ## Contexto
 Pelo [ADR 0003](0003-identificacao-por-email-e-senha.md), a conta de ONG é criada pela coordenação com `npm run ong:criar`. Isso funciona porque a rede é a da Marta: poucas ONGs, todas conhecidas. O próprio ADR 0003 registrou o limite dessa regra, no risco "a coordenação vira gargalo para ONGs novas", com a saída "se a rede crescer, trocar por cadastro de ONG com aprovação".
@@ -60,7 +60,27 @@ Quem aprova é a coordenação de cada cidade, e não só a Marta. Uma tela de a
 - **Riscos e o que fazer:**
   - *Uma cidade fica sem coordenador ativo, e os pedidos param* → cada cidade começa com dois coordenadores, e nós acompanhamos os pedidos pendentes há mais de uma semana.
   - *Um coordenador aprova quem não é ONG* → a aprovação pode ser desfeita, e o registro de quem aprovou mostra onde está o erro.
-  - *Implementar antes da hora* → enquanto a rede for de um bairro só, o script do ADR 0003 continua valendo. Este ADR entra em prática antes da primeira cidade nova.
+  - *Implementar antes da hora* → o risco se realizou ao contrário: implementamos na Unidade 2, antes da primeira cidade nova, porque o cadastro pela tela já tira a equipe de desenvolvimento do caminho de toda ONG nova, que é o problema central. O custo de antecipar foi baixo porque o script do ADR 0003 continua existindo: ele passou a criar ONG **já aprovada**, e um segundo script cria a primeira coordenação de cada cidade.
+
+## Como ficou implementado
+
+Cada regra da decisão tem onde conferir:
+
+| Regra da decisão | Onde está no código | Teste |
+|---|---|---|
+| A ONG cria a conta na tela, com cidade, e nasce pendente | `cadastrarPeloSite` em `src/usuarios.js`; escolha "Sou doador / Sou ONG" em `public/index.html` | "cria a conta pendente e já deixa a ONG entrar" |
+| A cidade é obrigatória para a ONG, e não para o doador | `PAPEIS_COM_CIDADE` em `src/usuarios.js` | "recusa o cadastro de ONG sem cidade, porque a coordenação é por cidade" |
+| A ONG pendente entra e vê a lista, mas não aceita | `exigirOngAprovada` em `src/usuarios.js`, usada por `aceitar` em `src/doacoes.js` | "deixa a ONG pendente ver a lista, mas recusa o aceite dela" |
+| A coordenação é um papel ligado a uma cidade | papel `coordenacao` e coluna `cidade` em `prisma/schema.prisma` | "mostra só os pedidos pendentes da cidade de quem coordena" |
+| Cada decisão registra quem aprovou e quando | `avaliarOng` em `src/usuarios.js`; colunas `avaliada_em` e `avaliada_por_id` | "aprovar deixa a ONG aceitar e registra quem aprovou e quando" |
+| Uma aprovação pode ser desfeita | a mesma `avaliarOng`, com situação `recusada` | "desfaz uma aprovação, e a ONG volta a não aceitar" |
+| Nós criamos a primeira coordenação de cada cidade | `scripts/criar-coordenacao.js` (`npm run coordenacao:criar`) | — (comando de terminal, como o `ong:criar`) |
+| As ONGs que já existem continuam aprovadas | `DEFAULT 'aprovada'` na migration `20261027120000_cadastro_de_ong_com_aprovacao` | "nasce aprovada e aceita doações na hora" |
+
+Duas decisões de implementação que o ADR não previa:
+
+- **A situação da conta é lida a cada requisição**, e não guardada na sessão. Por isso uma aprovação vale na hora, sem a ONG precisar sair e entrar de novo — o que o critério CA-06.2 verifica.
+- **A tela não mostra o botão de aceitar para conta não aprovada.** A regra no servidor é o que protege a doação; esconder o botão evita oferecer à ONG uma ação que ela vai receber de volta como erro.
 
 ## Rastreabilidade
 - Problema central: canal "dependente de uma pessoa". Se toda conta de ONG passasse por nós, a rede voltaria a depender de uma pessoa.

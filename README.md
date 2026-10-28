@@ -28,13 +28,21 @@ O `.env` fica só na sua máquina, porque o git ignora esse arquivo. Nunca coloq
 ```bash
 npm install          # instala e gera o cliente do Prisma
 npm run db:migrar    # cria ou atualiza as tabelas no Neon
-npm run ong:criar -- "Banco de Alimentos" contato@banco.org senha-segura
+npm run coordenacao:criar -- "Marta" marta@pratocheio.org senha-segura "Santo André"
 npm start            # sobe em http://localhost:3000
 npm test             # roda os testes, sem usar o Neon
 npm run dev          # sobe recarregando a cada alteração
 ```
 
-Doadores criam a própria conta na tela. ONGs **não** se cadastram sozinhas: a coordenação cria a conta com `npm run ong:criar`, como no exemplo acima ([ADR 0003](docs/adr/0003-identificacao-por-email-e-senha.md)). Quando a rede atender outras cidades, a ONG passa a se cadastrar na tela, com aprovação da coordenação da cidade ([ADR 0006](docs/adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md)). Para ver os dois papéis ao mesmo tempo, use uma janela normal para o doador e uma janela anônima para a ONG.
+**Quem cria cada conta.** Doadores e ONGs criam a própria conta na tela, escolhendo *Sou doador* ou *Sou ONG*. A conta de ONG nasce **pendente** e só aceita doações depois que a coordenação da cidade dela aprova ([ADR 0006](docs/adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md)) — por isso o comando acima, que cria a primeira coordenação de uma cidade, é o único cadastro que precisa do terminal. É um comando por cidade, e não um por ONG.
+
+Para criar uma ONG já aprovada, sem passar pela fila, o comando antigo continua:
+
+```bash
+npm run ong:criar -- "Banco de Alimentos" contato@banco.org senha-segura "Santo André"
+```
+
+Para ver os três papéis ao mesmo tempo, use uma janela normal, uma anônima e uma de outro navegador.
 
 Os testes rodam num **PostgreSQL em memória** (PGlite), criado a partir das mesmas migrations que vão para o Neon. Eles não precisam de internet nem de senha e nunca tocam no banco de verdade.
 
@@ -59,15 +67,17 @@ Os porquês estão nos ADRs [0005](docs/adr/0005-postgresql-no-lugar-do-sqlite.m
 ```
 src/server.js          entrypoint (npm start)
 src/app.js             página inicial, rotas da API e cookie da sessão
-src/doacoes.js         regras das doações (RN-01, RN-02)
-src/usuarios.js        regras de conta: cadastro, login, sessão e papéis (H-04)
-src/regras.js          peças comuns às regras: erro com status e campos obrigatórios
+src/doacoes.js         regras das doações (RN-01, RN-02, RN-04)
+src/usuarios.js        regras de conta: cadastro, login, sessão, papéis e aprovação da ONG (H-04 a H-06)
+src/regras.js          peças comuns às regras: erro com status, id válido e campos obrigatórios
 src/repositorio.js     acesso ao banco (Prisma Client)
 src/db.js              conexão com o PostgreSQL
 prisma/schema.prisma   modelo das tabelas
 prisma/migrations/     SQL de cada mudança no banco
 prisma.config.js       configuração do Prisma (lê o .env)
-scripts/criar-ong.js   cria conta de ONG (npm run ong:criar)
+scripts/criar-ong.js   cria conta de ONG já aprovada (npm run ong:criar)
+scripts/criar-coordenacao.js  cria a coordenação de uma cidade (npm run coordenacao:criar)
+scripts/criar-conta.js parte comum dos dois comandos acima
 public/                interface para celular: index.html, estilo.css e tela.js
 tests/                 testes automatizados (PostgreSQL em memória)
 docs/analise.md        documento de análise   (Trabalho 1)
@@ -107,7 +117,8 @@ Mudou o banco? A pasta nova em `prisma/migrations/` entra no mesmo Pull Request,
 - **Identificação por e-mail e senha** (H-04, [ADR 0003](docs/adr/0003-identificacao-por-email-e-senha.md)). O doador cria a conta na tela, a conta de ONG é criada pela coordenação, e cada doação registra quem publicou e quem aceitou.
 - **Banco PostgreSQL no Neon, com Prisma** ([ADR 0001](docs/adr/0001-banco-postgresql-no-neon.md), [ADR 0004](docs/adr/0004-prisma-e-migrations.md)).
 - **No ar na Vercel:** [prato-cheio-sigma.vercel.app](https://prato-cheio-sigma.vercel.app) ([ADR 0002](docs/adr/0002-hospedagem-na-vercel.md)). Cada merge na `main` publica uma versão nova.
-- **Tela nova, pensada para o celular.** Tem entrar e criar conta, publicar com confirmação e erro visível, e a lista de doações da ONG com o botão de aceitar.
+- **Cadastro de ONG com aprovação da coordenação da cidade** (H-05 e H-06, [ADR 0006](docs/adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md)). A ONG se cadastra na tela e a conta nasce pendente: ela entra, vê as doações, mas o aceite só libera depois que a coordenação da cidade dela aprova (RN-04). A coordenação é um papel novo, que vê os pedidos da sua cidade, aprova ou recusa, e cada decisão fica gravada com quem decidiu e quando.
+- **Tela nova, pensada para o celular.** Tem entrar e criar conta — escolhendo doador ou ONG —, publicar com confirmação e erro visível, a lista de doações da ONG com o botão de aceitar, e a tela de pedidos da coordenação.
 - **Decisões de projeto** em [`docs/decisoes-de-projeto.md`](docs/decisoes-de-projeto.md): três decisões que o caso exige, cada uma com duas alternativas, a tabela de trade-offs da D3 e a justificativa ligada à nossa análise. O resumo de todas as decisões, inclusive as que já tomamos, está em [`docs/projeto.md`](docs/projeto.md).
 - **ADRs 0005 e 0006.** O [ADR 0005](docs/adr/0005-postgresql-no-lugar-do-sqlite.md) registra por que trocamos o SQLite pelo PostgreSQL, com contexto, alternativas e consequências. O [ADR 0006](docs/adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md) revisa o [ADR 0003](docs/adr/0003-identificacao-por-email-e-senha.md) para uma rede em várias cidades: mantém o e-mail e senha e troca a regra da conta de ONG.
 
@@ -118,9 +129,11 @@ A fatia atravessa todas as camadas de propósito — é isso que faz dela um *wa
 | Doador entra ou cria a conta | formulários **Entrar** e **Criar conta de doador** | `POST /api/login`, `POST /api/cadastro` | `src/usuarios.js` — senha com hash, sessão de 30 dias, cadastro público só cria doador (H-04) | tabelas `usuarios` e `sessoes` |
 | Doador publica | formulário **Publicar doação** | `POST /api/doacoes` | `criarDoacao` — só doador; exige tipo, quantidade e validade (RN-01) | `inserir` — grava quem publicou |
 | ONG vê a lista | lista **Doações disponíveis** | `GET /api/doacoes` | `listarDisponiveis` — exige login | `listarDisponiveis` — só `disponivel`, com o nome do doador |
-| ONG aceita | botão **Aceitar doação** | `POST /api/doacoes/:id/aceitar` | `aceitar` — só ONG; o nome vem da conta; explica por que recusou | `aceitar` — altera só se ainda estiver `disponivel`, numa única instrução (RN-02) |
+| ONG aceita | botão **Aceitar doação** | `POST /api/doacoes/:id/aceitar` | `aceitar` — só ONG **aprovada**; o nome vem da conta; explica por que recusou | `aceitar` — altera só se ainda estiver `disponivel`, numa única instrução (RN-02) |
+| ONG cria a conta | escolha **Sou ONG** + cidade | `POST /api/cadastro` | `cadastrarPeloSite` — conta de ONG nasce pendente (RN-04) | `inserirUsuario` — grava cidade e situação |
+| Coordenação aprova | tela **Pedidos de conta** | `GET /api/ongs/pendentes`, `POST /api/ongs/:id/aprovar` e `/recusar` | `listarOngsPendentes` e `avaliarOng` — só a coordenação, e só da sua cidade | `listarOngsPorSituacao` e `avaliarConta` — grava quem decidiu e quando |
 
-Cada critério de aceite de H-01, H-02 e H-04 em `docs/analise.md` aponta para um teste. São 23 testes, todos passando: 8 em `tests/doacoes.test.js`, 12 em `tests/contas.test.js` e 3 em `tests/deploy.test.js`, que conferem o que a Vercel exige. Erro de regra vira resposta `400`, falta de login vira `401` e papel errado vira `403`.
+Cada critério de aceite de H-01, H-02 e H-04 a H-06 em `docs/analise.md` aponta para um teste. São 36 testes, todos passando: 8 em `tests/doacoes.test.js`, 12 em `tests/contas.test.js`, 13 em `tests/aprovacao.test.js` e 3 em `tests/deploy.test.js`, que conferem o que a Vercel exige. Erro de regra vira resposta `400`, falta de login vira `401` e papel ou conta sem permissão vira `403`.
 
 **Falta (backlog):**
 - Trocar a região da função da Vercel para São Paulo (`gru1`), a mesma do banco. Hoje ela roda em Washington (`iad1`) ([ADR 0002](docs/adr/0002-hospedagem-na-vercel.md)).
@@ -128,7 +141,7 @@ Cada critério de aceite de H-01, H-02 e H-04 em `docs/analise.md` aponta para u
 - Doação aceita e não retirada, depois de decidirmos a D2.
 - Aviso às ONGs quando surge uma doação, depois de decidirmos a D3.
 - Recuperação de senha e limite de tentativas de login ([ADR 0003](docs/adr/0003-identificacao-por-email-e-senha.md)). Os dois são pré-requisitos para a rede atender outras cidades ([ADR 0006](docs/adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md)).
-- Cadastro de ONG com aprovação da coordenação da cidade, antes da primeira cidade nova ([ADR 0006](docs/adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md)).
+- Lista de doações por cidade. Hoje a conta de ONG tem cidade, mas a lista de disponíveis é uma só para toda a rede.
 
 Detalhes em "Fora do escopo" e "Riscos" de `docs/analise.md`.
 
