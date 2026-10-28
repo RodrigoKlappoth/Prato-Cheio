@@ -1,7 +1,7 @@
 # ADR 0006 — Conta de ONG por cadastro com aprovação da coordenação da cidade
 
 - **Data:** 2026-10-08 · **implementado em** 2026-10-27, nas histórias H-05 e H-06
-- **Status:** aceito e implementado. Substitui em parte o [ADR 0003](0003-identificacao-por-email-e-senha.md): a regra "a conta de ONG é criada pela coordenação".
+- **Status:** aceito e implementado, com **uma regra substituída no mesmo dia**. Substitui em parte o [ADR 0003](0003-identificacao-por-email-e-senha.md): a regra "a conta de ONG é criada pela coordenação". E é substituído em parte pelo [ADR 0010](0010-aprovacao-central-da-conta-de-ong.md): **quem aprova não é mais a coordenação de cada cidade**, e sim qualquer conta de coordenação, porque a rede tem uma coordenação só e o pedido de uma cidade sem coordenador ficava parado sem ninguém que pudesse decidir. Tudo o mais aqui continua valendo: o cadastro pela tela, a conta que nasce pendente, o bloqueio do aceite e o registro de quem decidiu.
 
 ## Contexto
 Pelo [ADR 0003](0003-identificacao-por-email-e-senha.md), a conta de ONG é criada pela coordenação com `npm run ong:criar`. Isso funciona porque a rede é a da Marta: poucas ONGs, todas conhecidas. O próprio ADR 0003 registrou o limite dessa regra, no risco "a coordenação vira gargalo para ONGs novas", com a saída "se a rede crescer, trocar por cadastro de ONG com aprovação".
@@ -69,9 +69,9 @@ Cada regra da decisão tem onde conferir:
 | Regra da decisão | Onde está no código | Teste |
 |---|---|---|
 | A ONG cria a conta na tela, com cidade, e nasce pendente | `cadastrarPeloSite` em `src/usuarios.js`; escolha "Sou doador / Sou ONG" em `public/index.html` | "cria a conta pendente e já deixa a ONG entrar" |
-| A cidade é obrigatória para a ONG, e não para o doador | `PAPEIS_COM_CIDADE` em `src/usuarios.js` | "recusa o cadastro de ONG sem cidade, porque a coordenação é por cidade" |
+| ~~A cidade é obrigatória para a ONG, e não para o doador~~ | **Mudou no [ADR 0009](0009-estado-e-cidade-escolhidos-em-lista.md):** estado e cidade passaram a ser obrigatórios em **toda** conta, escolhidos numa lista. A justificativa de poupar o doador vinha de uma leitura errada do CONF-01, que trata dos campos da doação | "recusa o cadastro de doador sem estado e sem cidade" |
 | A ONG pendente entra e vê a lista, mas não aceita | `exigirOngAprovada` em `src/usuarios.js`, usada por `aceitar` em `src/doacoes.js` | "deixa a ONG pendente ver a lista, mas recusa o aceite dela" |
-| A coordenação é um papel ligado a uma cidade | papel `coordenacao` e coluna `cidade` em `prisma/schema.prisma` | "mostra só os pedidos pendentes da cidade de quem coordena" |
+| ~~A coordenação é um papel ligado a uma cidade~~ | **Regra substituída pelo [ADR 0010](0010-aprovacao-central-da-conta-de-ong.md) no mesmo dia.** O papel `coordenacao` existe e a conta tem cidade, mas a cidade passou a dizer onde a pessoa está, e não o que ela pode decidir | o teste "mostra só os pedidos pendentes da cidade de quem coordena" virou "mostra os pedidos pendentes de todas as cidades da rede" |
 | Cada decisão registra quem aprovou e quando | `avaliarOng` em `src/usuarios.js`; colunas `avaliada_em` e `avaliada_por_id` | "aprovar deixa a ONG aceitar e registra quem aprovou e quando" |
 | Uma aprovação pode ser desfeita | a mesma `avaliarOng`, com situação `recusada` | "desfaz uma aprovação, e a ONG volta a não aceitar" |
 | Nós criamos a primeira coordenação de cada cidade | `scripts/criar-coordenacao.js` (`npm run coordenacao:criar`) | — (comando de terminal, como o `ong:criar`) |

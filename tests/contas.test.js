@@ -4,11 +4,11 @@ import { criarApp } from '../src/app.js';
 import { banco } from '../src/db.js';
 import { cadastrarPeloSite, pelaSessao } from '../src/usuarios.js';
 import { criarBancoEmMemoria, limparBanco, fecharBancoEmMemoria } from './banco-em-memoria.js';
-import { SOPA, entrarComoDoador, entrarComoOng } from './apoio.js';
+import { SOPA, ESTADO, CIDADE, entrarComoDoador, entrarComoOng } from './apoio.js';
 
 const app = criarApp();
 
-const PAULO = { nome: 'Padaria do Seu Paulo', email: 'paulo@padaria.com', senha: 'senha-segura' };
+const PAULO = { nome: 'Padaria do Seu Paulo', email: 'paulo@padaria.com', senha: 'senha-segura', estado: ESTADO, cidade: CIDADE };
 const TRINTA_E_UM_DIAS = 31 * 24 * 60 * 60 * 1000;
 
 beforeAll(criarBancoEmMemoria);
@@ -29,7 +29,8 @@ describe('criar conta de doador', () => {
       nome: PAULO.nome,
       email: PAULO.email,
       papel: 'doador',
-      cidade: null,
+      estado: ESTADO,
+      cidade: CIDADE,
       situacao: 'aprovada'
     });
     expect((await doador.get('/api/eu')).body).toMatchObject({ email: PAULO.email, papel: 'doador' });
@@ -38,10 +39,10 @@ describe('criar conta de doador', () => {
   // O cadastro da tela cria doador ou ONG pendente (ADR 0006), e mais nada:
   // ninguém vira coordenação preenchendo o formulário.
   it('cria conta de doador quando o pedido pede um papel que a tela não cria', async () => {
-    const res = await request(app).post('/api/cadastro').send({ ...PAULO, papel: 'coordenacao', cidade: 'Santo André' });
+    const res = await request(app).post('/api/cadastro').send({ ...PAULO, papel: 'coordenacao' });
 
     expect(res.status).toBe(201);
-    expect(res.body).toMatchObject({ papel: 'doador', cidade: null, situacao: 'aprovada' });
+    expect(res.body).toMatchObject({ papel: 'doador', cidade: CIDADE, situacao: 'aprovada' });
   });
 
   it('recusa e-mail que já tem cadastro', async () => {

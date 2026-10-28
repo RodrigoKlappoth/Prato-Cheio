@@ -11,6 +11,7 @@ const NOME_NO_CADASTRO = {
 };
 
 let usuarioAtual;
+let localidadesDaRede = [];
 
 function mostrarTela(id) {
   for (const tela of TELAS) $(tela).hidden = tela !== id;
@@ -115,16 +116,35 @@ function papelEscolhido() {
   return document.querySelector('input[name="papel"]:checked').value;
 }
 
-// A ONG informa a cidade, porque é a coordenação dela que aprova a conta
-// (ADR 0006). O doador não informa: campo a mais no cadastro dele é doador a
-// menos (CONF-01).
 function ajustarCadastro() {
   const ehOng = papelEscolhido() === 'ong';
   const [rotulo, exemplo] = NOME_NO_CADASTRO[ehOng ? 'ong' : 'doador'];
   $('rotulo-nome').textContent = rotulo;
   $('criar-nome').placeholder = exemplo;
-  $('campo-cidade').hidden = !ehOng;
   $('dica-ong').hidden = !ehOng;
+}
+
+function opcao(valor, texto) {
+  const item = document.createElement('option');
+  item.value = valor;
+  item.textContent = texto;
+  return item;
+}
+
+// Estado e cidade são escolhidos numa lista, e não digitados: quando era texto
+// livre, "Joinville" e "Joinvile" eram cidades diferentes para o sistema, e a
+// ONG com um deslize de digitação não via doação nenhuma (ADR 0009).
+function mostrarCidadesDoEstado() {
+  const estado = localidadesDaRede.find((uf) => uf.sigla === $('criar-estado').value);
+  $('criar-cidade').replaceChildren(...(estado ? estado.cidades.map((c) => opcao(c, c)) : []));
+}
+
+async function carregarLocalidades() {
+  const { ok, dados } = await chamarApi('/api/localidades');
+  if (!ok || !Array.isArray(dados)) return;
+  localidadesDaRede = dados;
+  $('criar-estado').replaceChildren(...dados.map((uf) => opcao(uf.sigla, `${uf.sigla} — ${uf.nome}`)));
+  mostrarCidadesDoEstado();
 }
 
 function mostrarEntrada(mensagem = '') {
@@ -143,10 +163,10 @@ function sessaoEncerrada() {
 
 function avisoDaConta({ situacao, cidade }) {
   if (situacao === 'pendente') {
-    return `Sua conta aguarda a aprovação da coordenação de ${cidade}. Você já vê as doações; o aceite libera depois da aprovação.`;
+    return `Sua conta aguarda a aprovação da coordenação. Você já vê as doações de ${cidade}; o aceite libera depois da aprovação.`;
   }
   if (situacao === 'recusada') {
-    return `A coordenação de ${cidade} não aprovou esta conta. Fale com ela para entender o motivo.`;
+    return 'A coordenação não aprovou esta conta. Fale com ela para entender o motivo.';
   }
   return '';
 }
@@ -199,6 +219,7 @@ $('form-criar').addEventListener('submit', (evento) => {
         email: $('criar-email').value,
         senha: $('criar-senha').value,
         papel: papelEscolhido(),
+        estado: $('criar-estado').value,
         cidade: $('criar-cidade').value
       }
     });
@@ -209,9 +230,11 @@ $('form-criar').addEventListener('submit', (evento) => {
   });
 });
 
-for (const opcao of document.querySelectorAll('input[name="papel"]')) {
-  opcao.addEventListener('change', ajustarCadastro);
+for (const escolha of document.querySelectorAll('input[name="papel"]')) {
+  escolha.addEventListener('change', ajustarCadastro);
 }
+
+$('criar-estado').addEventListener('change', mostrarCidadesDoEstado);
 
 $('ir-para-cadastro').addEventListener('click', () => {
   alternarCadastro(true);
@@ -291,9 +314,11 @@ function cartaoVazio(titulo, explicacao) {
 }
 
 function listaVazia() {
+  // A cidade aparece na mensagem de propósito: a lista mostra só as doações da
+  // cidade da conta (RN-06), e lista vazia sem essa explicação parece defeito.
   return cartaoVazio(
-    'Nenhuma doação esperando agora.',
-    'Quando um doador publicar, ela aparece aqui. Toque em Atualizar para conferir.'
+    `Nenhuma doação esperando em ${usuarioAtual?.cidade ?? 'sua cidade'} agora.`,
+    'Quando um doador da sua cidade publicar, ela aparece aqui. Toque em Atualizar para conferir.'
   );
 }
 
@@ -395,7 +420,7 @@ function cartaoDoPedido(pedido, ordem) {
     quando,
     elemento('h2', 'comanda-tipo', pedido.nome),
     elemento('p', 'comanda-quantidade', pedido.email),
-    elemento('p', 'comanda-origem', pedido.cidade),
+    elemento('p', 'comanda-origem', `${pedido.cidade}/${pedido.estado}`),
     rodape
   );
   return cartao;
@@ -520,6 +545,9 @@ document.addEventListener('visibilitychange', () => {
 });
 
 async function iniciar() {
+  // A lista de localidades vem antes de qualquer tela: ela monta os dois boxes
+  // do cadastro, e o cadastro acontece sem login.
+  await carregarLocalidades();
   const { ok, dados } = await chamarApi('/api/eu');
   if (ok) entrouComo(dados);
   else mostrarEntrada();
