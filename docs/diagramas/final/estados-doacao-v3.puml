@@ -1,0 +1,101 @@
+' =====================================================================
+' VERSÃO 3 — ATUALIZADA NA ENTREGA 2 (2026-10-27)
+' Diagrama de Estados — ciclo de vida de uma doação (Prato Cheio)
+' A v2 continua no repositório como está: ela é a entrega da atividade
+' de diagramas e registra o ciclo de vida de antes desta entrega.
+' O que mudou, e por quê: docs/diagramas/README.md, seção 7.
+' Confrontado com: prisma/schema.prisma (enum StatusDaDoacao),
+' src/doacoes.js, src/repositorio.js, src/regras.js e docs/analise.md
+' (RN-01 a RN-05).
+' =====================================================================
+
+@startuml estados-doacao-v3
+hide empty description
+skinparam state {
+  BackgroundColor<<derivado>> #FEF7E0
+  BorderColor<<derivado>> #B8860B
+  BackgroundColor<<novo>> #E3F0E7
+  BorderColor<<novo>> #1F6B45
+}
+title Ciclo de vida de uma Doação — Prato Cheio (entrega 2)
+
+state "disponivel" as Disponivel
+state "aceita" as Aceita
+state "retirada" as Retirada <<novo>>
+state "vencida" as Vencida <<derivado>>
+
+Disponivel : status persistido (enum StatusDaDoacao)
+Disponivel : aparece em GET /api/doacoes se validade >= hoje
+Aceita : status persistido; grava ong_id, ong e aceita_em
+Retirada : status persistido (novo na entrega 2)
+Retirada : grava retirada_em — fecha a conta do OBJ-01
+Vencida : NÃO é valor do enum — é derivado de validade < hoje
+Vencida : decisão da v2, confirmada pela implementação da RN-03
+
+[*] --> Disponivel : POST /api/doacoes\n[papel = doador]\n/ RN-01: tipo, quantidade e validade, senão 400\n/ RN-03: validade >= hoje, senão 400 "já vencido"
+
+Disponivel --> Aceita : POST /api/doacoes/:id/aceitar\n[papel = ong E situacao = aprovada\nE status ainda = disponivel E validade >= hoje]\n/ RN-02 e RN-04: grava ong_id, ong, aceita_em e sai da lista
+
+Disponivel --> Disponivel : POST /api/doacoes/:id/aceitar\n[sem login] / 401 (CA-02.5)\n[papel != ong] / 403 (CA-04.5)\n[ong com conta pendente ou recusada] / 403 (CA-05.3)
+
+Aceita --> Aceita : POST /api/doacoes/:id/aceitar\n[segunda ONG tenta] / 400 "já foi aceita por {ONG}" (CA-02.3)
+
+Aceita --> Retirada : POST /api/doacoes/:id/retirar\n[ong_id = quem pede]\n/ RN-05: grava retirada_em (CA-07.3)
+
+Aceita --> Disponivel : POST /api/doacoes/:id/cancelar\n[ong_id = quem pede]\n/ RN-05: apaga ong, ong_id e aceita_em;\nvolta para a lista das outras ONGs (CA-07.5)
+
+Aceita --> Aceita : POST retirar ou cancelar\n[ong_id != quem pede] / 403 (CA-07.6)
+
+Retirada --> Retirada : POST aceitar / 400 "já foi retirada por {ONG}"\nPOST retirar / 400 "já foi confirmada"\nPOST cancelar / 400 (CA-07.4)
+
+Disponivel --> Vencida : passagem do tempo\n[validade < hojeNaRede(agora)] (RN-03)
+
+Vencida --> Vencida : POST /api/doacoes/:id/aceitar\n/ 400 "prazo de retirada vencido" (CA-03.2)
+
+note right of Vencida
+  A decisão da v2 se manteve: "vencida" não
+  virou um terceiro valor do enum, mesmo
+  agora que a RN-03 está implementada. Ela
+  é calculada na consulta
+  (WHERE validade >= hoje), porque nenhum
+  evento do usuário provoca a transição —
+  só a passagem do tempo.
+  A doação vencida continua gravada como
+  "disponivel": ela não é apagada nem muda
+  de estado, e é isso que preserva o
+  registro para a vigilância sanitária.
+  "Hoje" é o dia em São Paulo, e não o do
+  relógio do servidor, que roda em UTC
+  (ADR 0007).
+end note
+
+note bottom of Aceita
+  A v2 dizia: "não existe cancelamento de
+  aceite na U2 (...) por isso NÃO há
+  transição Aceita --> Disponivel aqui".
+  A entrega 2 criou essa transição, pela
+  decisão D2 (ADR 0008). Só a ONG que
+  aceitou pode usá-la, e ela apaga o
+  aceite: a doação volta à lista com o
+  mesmo id, como se nunca tivesse sido
+  aceita.
+  A liberação automática em 4 h, a outra
+  alternativa da D2, continua fora: ela
+  precisa de tarefa agendada, e a função
+  da Vercel só acorda com requisição.
+end note
+
+note right of Retirada
+  Estado terminal, e de propósito: dele não
+  se sai. É a confirmação da ONG de que a
+  comida saiu da porta do doador.
+  criada_em -> retirada_em é a medida do
+  OBJ-01 (mediana <= 4 h), que nenhuma
+  versão anterior do sistema conseguia
+  calcular.
+  Ninguém é obrigado a confirmar, então a
+  medida mede só o que foi confirmado —
+  o viés está registrado no ADR 0008.
+end note
+
+@enduml

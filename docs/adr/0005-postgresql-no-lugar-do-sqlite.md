@@ -1,7 +1,8 @@
 # ADR 0005 — Banco relacional: PostgreSQL no lugar do SQLite
 
 - **Data:** 2026-10-08, registro da decisão tomada em 2026-09-23, junto com o [ADR 0001](0001-banco-postgresql-no-neon.md)
-- **Status:** aceito e implementado
+- **Revisado em:** 2026-10-27, na entrega 2, com as evidências de duas mudanças de modelo feitas depois da migração (seção [Revisão na entrega 2](#revisão-na-entrega-2))
+- **Status:** aceito e implementado. Revisão confirma a decisão.
 
 ## Contexto
 No walking skeleton da Unidade 1, o banco era o SQLite embutido no Node (`node:sqlite`): um arquivo, `dados.sqlite`, no computador de quem roda o servidor, sem nada para instalar. O plano da disciplina era trocar pelo PostgreSQL na Unidade 3 e registrar a decisão num ADR na Unidade 2.
@@ -41,6 +42,29 @@ Para manter o compromisso dos testes, eles rodam no PGlite, um PostgreSQL em mem
 - **Riscos e o que fazer:**
   - *A troca mudar o comportamento do sistema* → os mesmos 20 testes passaram antes, com SQLite em memória, e depois, com PostgreSQL em memória ([`docs/refatoracoes.md`](../refatoracoes.md)).
   - *Depender de um serviço externo e do plano gratuito dele* → tratado no [ADR 0001](0001-banco-postgresql-no-neon.md): o código só conhece a `DATABASE_URL`, então trocar de fornecedor é trocar uma variável.
+
+## Revisão na entrega 2
+
+Quando tomamos esta decisão, a migração tinha acabado de acontecer e a única evidência era "os mesmos 20 testes passaram antes e depois". A entrega 2 mexeu no modelo duas vezes, e isso nos deu a evidência que faltava: **o que a troca de banco custou de verdade e o que ela nos deu.**
+
+### As duas mudanças de modelo desta entrega
+
+| Migration | O que mudou | Para quê |
+|---|---|---|
+| `20261027120000_cadastro_de_ong_com_aprovacao` | `ALTER TYPE "Papel" ADD VALUE 'coordenacao'`, novo tipo `SituacaoDaConta`, quatro colunas em `usuarios` e uma chave estrangeira da tabela para ela mesma | [ADR 0006](0006-cadastro-de-ong-com-aprovacao-da-cidade.md): a ONG se cadastra e a coordenação da cidade aprova |
+| `20261027160000_retirada_e_horarios_da_doacao` | `ALTER TYPE "StatusDaDoacao" ADD VALUE 'retirada'` e as colunas `aceita_em` e `retirada_em` | [ADR 0008](0008-retirada-confirmada-e-cancelamento-do-aceite.md): confirmar a retirada e cancelar o aceite |
+
+### O que isso confirma da decisão
+
+- **Os tipos enumerados existem no PostgreSQL e não no SQLite.** `papel`, `situacao` e `status` são tipos do banco, e não texto livre com um `CHECK` colado. As duas migrations desta entrega são `ALTER TYPE ... ADD VALUE`, uma instrução que o SQLite não tem: lá, mudar um conjunto de valores aceitos significa recriar a tabela, copiar os dados e refazer as chaves estrangeiras. Com três estados de doação e três situações de conta, isso ia acontecer a cada história.
+- **O valor padrão na migração resolveu um problema de dados reais.** O `DEFAULT 'aprovada'` na coluna `situacao` é o que aplica a regra "as ONGs que já existem continuam aprovadas", sem `UPDATE` manual e sem ninguém ficar bloqueado quando a migration rodar no Neon.
+- **A chave estrangeira de `usuarios` para `usuarios`** — quem aprovou a conta — é ela que garante que `avaliada_por_id` aponte para uma conta que existe. Com `ON DELETE SET NULL`, apagar uma conta de coordenação não apaga o histórico de aprovações dela.
+- **O compromisso dos testes continua valendo, e agora com mais peso.** As duas migrations novas rodam no PGlite, em memória, nas mesmas instruções que vão para o Neon. Foi o PGlite que provou que `ALTER TYPE ... ADD VALUE` funciona dentro da transação em que o Prisma aplica cada migration — se tivesse falhado, falharia no CI, e não no banco da rede. São 57 testes, verdes, sem internet e sem senha.
+- **O que a decisão continua custando:** rodar o sistema (`npm start`) ainda exige um banco no Neon e o `.env`. Nesta entrega, isso apareceu de novo nos dois comandos de terminal (`npm run ong:criar` e `npm run coordenacao:criar`), que precisam da senha do banco — e foi justamente esse custo que motivou o [ADR 0006](0006-cadastro-de-ong-com-aprovacao-da-cidade.md) a tirar o cadastro de ONG do terminal e levá-lo para a tela.
+
+### A decisão continua a mesma
+
+Não mudamos nada. Se tivéssemos ficado no SQLite até a Unidade 3, as duas mudanças de modelo desta entrega teriam sido feitas no dialeto do SQLite e refeitas depois no PostgreSQL — a "segunda migração" que a alternativa 2 nos faria pagar. O único ponto que revisitamos foi o desempenho, que seguimos **não** usando como motivo: o volume real continua desconhecido (INC-04), e as consultas novas desta entrega (lista de pendentes por cidade, histórico por conta) são buscas por chave estrangeira em tabelas de dezenas de linhas.
 
 ## Rastreabilidade
 - Restrição da disciplina (README): PostgreSQL por `DATABASE_URL`, schema migrado e CI verde.

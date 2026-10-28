@@ -9,20 +9,39 @@ datasource db {
 enum Papel {
   doador
   ong
+  coordenacao
 }
 
+// Situação da conta de ONG diante da coordenação da cidade (ADR 0006).
+// Doador e coordenação nascem aprovados: a situação só governa o aceite da ONG.
+enum SituacaoDaConta {
+  pendente
+  aprovada
+  recusada
+}
+
+// Ciclo de vida da doação. O aceite pode ser cancelado e a doação volta para
+// disponivel; a retirada é o fim da linha (ADR 0008).
 enum StatusDaDoacao {
   disponivel
   aceita
+  retirada
 }
 
 model Usuario {
-  id         Int      @id @default(autoincrement())
-  nome       String
-  email      String   @unique
-  senha_hash String
-  papel      Papel
-  criado_em  DateTime @default(now())
+  id              Int             @id @default(autoincrement())
+  nome            String
+  email           String          @unique
+  senha_hash      String
+  papel           Papel
+  cidade          String?
+  situacao        SituacaoDaConta @default(aprovada)
+  avaliada_em     DateTime?
+  avaliada_por_id Int?
+  criado_em       DateTime        @default(now())
+
+  avaliada_por     Usuario?  @relation("AvaliacoesDeConta", fields: [avaliada_por_id], references: [id], onDelete: SetNull)
+  contas_avaliadas Usuario[] @relation("AvaliacoesDeConta")
 
   sessoes         Sessao[]
   doacoes_doadas  Doacao[] @relation("DoacoesPublicadas")
@@ -48,6 +67,8 @@ model Doacao {
   status        StatusDaDoacao @default(disponivel)
   ong           String?
   criada_em     DateTime       @default(now())
+  aceita_em     DateTime?
+  retirada_em   DateTime?
   doador_id     Int
   ong_id        Int?
   publicada_por Usuario        @relation("DoacoesPublicadas", fields: [doador_id], references: [id])

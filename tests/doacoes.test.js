@@ -2,11 +2,10 @@ import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import request from 'supertest';
 import { criarApp } from '../src/app.js';
 import { criarBancoEmMemoria, limparBanco, fecharBancoEmMemoria } from './banco-em-memoria.js';
-import { entrarComoDoador, entrarComoOng } from './apoio.js';
+import { SOPA, diaNaRede, entrarComoDoador, entrarComoOng } from './apoio.js';
 
 const app = criarApp();
 
-const SOPA = { tipo: 'Sopa', quantidade: '10 porções', validade: '2026-08-01' };
 
 let doador;
 let ong;
@@ -55,7 +54,7 @@ describe('publicar e listar doações', () => {
     expect(res.body[0]).toMatchObject({
       tipo: 'Sopa',
       quantidade: '10 porções',
-      validade: '2026-08-01',
+      validade: SOPA.validade,
       status: 'disponivel'
     });
   });

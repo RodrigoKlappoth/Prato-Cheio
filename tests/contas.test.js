@@ -2,13 +2,12 @@ import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest';
 import request from 'supertest';
 import { criarApp } from '../src/app.js';
 import { banco } from '../src/db.js';
-import { cadastrarDoador, pelaSessao } from '../src/usuarios.js';
+import { cadastrarPeloSite, pelaSessao } from '../src/usuarios.js';
 import { criarBancoEmMemoria, limparBanco, fecharBancoEmMemoria } from './banco-em-memoria.js';
-import { entrarComoDoador, entrarComoOng } from './apoio.js';
+import { SOPA, entrarComoDoador, entrarComoOng } from './apoio.js';
 
 const app = criarApp();
 
-const SOPA = { tipo: 'Sopa', quantidade: '10 porções', validade: '2026-08-01' };
 const PAULO = { nome: 'Padaria do Seu Paulo', email: 'paulo@padaria.com', senha: 'senha-segura' };
 const TRINTA_E_UM_DIAS = 31 * 24 * 60 * 60 * 1000;
 
@@ -25,15 +24,24 @@ describe('criar conta de doador', () => {
     const res = await doador.post('/api/cadastro').send(PAULO);
 
     expect(res.status).toBe(201);
-    expect(res.body).toEqual({ id: expect.any(Number), nome: PAULO.nome, email: PAULO.email, papel: 'doador' });
+    expect(res.body).toEqual({
+      id: expect.any(Number),
+      nome: PAULO.nome,
+      email: PAULO.email,
+      papel: 'doador',
+      cidade: null,
+      situacao: 'aprovada'
+    });
     expect((await doador.get('/api/eu')).body).toMatchObject({ email: PAULO.email, papel: 'doador' });
   });
 
-  it('cria sempre conta de doador, mesmo que o pedido diga ONG', async () => {
-    const res = await request(app).post('/api/cadastro').send({ ...PAULO, papel: 'ong' });
+  // O cadastro da tela cria doador ou ONG pendente (ADR 0006), e mais nada:
+  // ninguém vira coordenação preenchendo o formulário.
+  it('cria conta de doador quando o pedido pede um papel que a tela não cria', async () => {
+    const res = await request(app).post('/api/cadastro').send({ ...PAULO, papel: 'coordenacao', cidade: 'Santo André' });
 
     expect(res.status).toBe(201);
-    expect(res.body.papel).toBe('doador');
+    expect(res.body).toMatchObject({ papel: 'doador', cidade: null, situacao: 'aprovada' });
   });
 
   it('recusa e-mail que já tem cadastro', async () => {
@@ -83,7 +91,7 @@ describe('entrar e sair', () => {
   });
 
   it('a sessão expira depois de 30 dias', async () => {
-    const { token } = await cadastrarDoador(PAULO);
+    const { token } = await cadastrarPeloSite(PAULO);
     const daquiA31Dias = new Date(Date.now() + TRINTA_E_UM_DIAS);
 
     expect(await pelaSessao(token)).toMatchObject({ email: PAULO.email });
