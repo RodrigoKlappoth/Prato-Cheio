@@ -2,24 +2,20 @@ import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import * as repo from './repositorio.js';
 import { falha, texto, identificador, exigirCampos } from './regras.js';
+import { estadoAtendido, cidadeAtendida } from './localidades.js';
 
 const derivarChave = promisify(scrypt);
 
 export const DURACAO_DA_SESSAO = 30 * 24 * 60 * 60 * 1000;
 const TAMANHO_MINIMO_DA_SENHA = 8;
 
-// Quem atua numa cidade precisa dizer qual é: a coordenação só decide sobre as
-// ONGs da sua cidade (ADR 0006). O doador continua sem esse campo, porque cada
-// campo a mais no cadastro dele aumenta a chance de desistir (CONF-01).
-const PAPEIS_COM_CIDADE = ['ong', 'coordenacao'];
-
 const PORQUE_A_CONTA_NAO_ACEITA = {
-  pendente: 'sua conta de ONG ainda aguarda a aprovação da coordenação da sua cidade',
-  recusada: 'a coordenação da sua cidade não aprovou esta conta de ONG'
+  pendente: 'sua conta de ONG ainda aguarda a aprovação da coordenação',
+  recusada: 'a coordenação não aprovou esta conta de ONG'
 };
 
-function semSenha({ id, nome, email, papel, cidade, situacao }) {
-  return { id, nome, email, papel, cidade, situacao };
+function semSenha({ id, nome, email, papel, estado, cidade, situacao }) {
+  return { id, nome, email, papel, estado, cidade, situacao };
 }
 
 function senhaDigitada(valor) {
@@ -53,10 +49,17 @@ async function cadastrar(dados, papel, situacao = 'aprovada') {
   };
   exigirCampos(conta, ['nome', 'email', 'senha']);
 
-  const comCidade = PAPEIS_COM_CIDADE.includes(papel);
+  // Toda conta tem estado e cidade, inclusive a de doador: é a cidade do doador
+  // que decide para quais ONGs a doação dele aparece (RN-06, ADR 0009).
+  const estado = texto(dados.estado).toUpperCase();
   const cidade = texto(dados.cidade);
-  if (comCidade) {
-    exigirCampos({ cidade }, ['cidade']);
+  exigirCampos({ estado, cidade }, ['estado', 'cidade']);
+
+  if (!estadoAtendido(estado)) {
+    throw falha(`a rede ainda não atende o estado ${estado}`);
+  }
+  if (!cidadeAtendida(estado, cidade)) {
+    throw falha(`a rede ainda não atende ${cidade} em ${estado}. Escolha uma cidade da lista`);
   }
 
   if (!conta.email.includes('@')) {
@@ -74,7 +77,8 @@ async function cadastrar(dados, papel, situacao = 'aprovada') {
     email: conta.email,
     senhaHash: await gerarHashDaSenha(conta.senha),
     papel,
-    cidade: comCidade ? cidade : null,
+    estado,
+    cidade,
     situacao
   });
   return semSenha(usuario);
@@ -146,9 +150,12 @@ export function exigirOngAprovada(usuario) {
   return usuario;
 }
 
+// A coordenação vê e decide os pedidos de qualquer cidade da rede, e não só os
+// da cidade dela (ADR 0010, que substitui essa regra do ADR 0006). A cidade da
+// conta de coordenação registra onde a pessoa está, e não o que ela pode.
 export async function listarOngsPendentes(coordenador) {
   exigirPapel(coordenador, 'coordenacao', 'só a coordenação vê os pedidos de conta de ONG');
-  return repo.listarOngsPorSituacao('pendente', coordenador.cidade);
+  return repo.listarOngsPorSituacao('pendente');
 }
 
 export async function avaliarOng(coordenador, id, situacao, agora = new Date()) {
@@ -157,12 +164,6 @@ export async function avaliarOng(coordenador, id, situacao, agora = new Date()) 
   const conta = await repo.buscarUsuarioPorId(identificador(id, 'conta'));
   if (!conta || conta.papel !== 'ong') {
     throw falha('conta de ONG não encontrada');
-  }
-  if (conta.cidade !== coordenador.cidade) {
-    // Contas de ONG criadas antes desta mudança não têm cidade registrada, e a
-    // mensagem não pode mostrar um "null" para quem coordena.
-    const cidadeDaConta = conta.cidade ?? 'uma cidade que não foi registrada';
-    throw falha(`esta conta é de ${cidadeDaConta}, e você coordena ${coordenador.cidade}`, 403);
   }
 
   return semSenha(await repo.avaliarConta({

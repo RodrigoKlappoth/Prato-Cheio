@@ -34,7 +34,8 @@ model Usuario {
   email           String          @unique
   senha_hash      String
   papel           Papel
-  cidade          String?
+  estado          String
+  cidade          String
   situacao        SituacaoDaConta @default(aprovada)
   avaliada_em     DateTime?
   avaliada_por_id Int?

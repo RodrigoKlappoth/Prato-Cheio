@@ -2,6 +2,7 @@ import express from 'express';
 import { fileURLToPath } from 'node:url';
 import * as doacoes from './doacoes.js';
 import * as usuarios from './usuarios.js';
+import { localidades } from './localidades.js';
 
 const COOKIE_DA_SESSAO = 'sessao';
 const PAGINA_INICIAL = fileURLToPath(new URL('../public/index.html', import.meta.url));
@@ -44,6 +45,10 @@ export function criarApp() {
 
   // Verificação de saúde: usada pelo CI para provar que a aplicação sobe.
   app.get('/api/saude', (req, res) => res.json({ ok: true }));
+
+  // Onde a rede atende. Sem login, porque a tela precisa montar os dois boxes
+  // do cadastro antes de existir conta (ADR 0009).
+  app.get('/api/localidades', (req, res) => res.json(localidades()));
 
   app.use('/api', async (req, res, next) => {
     try {

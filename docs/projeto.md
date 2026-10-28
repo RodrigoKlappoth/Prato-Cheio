@@ -4,11 +4,11 @@
 
 - **Grupo:** Rodrigo Xavier ([@RodrigoKLappoth](https://github.com/RodrigoKLappoth)) e Henrique Xavier ([@Ikeew](https://github.com/Ikeew))
 - **Repositório:** <https://github.com/RodrigoKlappoth/Prato-Cheio> · **No ar:** <https://prato-cheio-sigma.vercel.app>
-- **Testes:** 57, todos passando, em 6 arquivos. **25 deles** verificam que o sistema **recusa** algo.
+- **Testes:** 66, todos passando, em 7 arquivos. **29 deles** verificam que o sistema **recusa** algo.
 
 ## 1. O que esta entrega fez
 
-Quatro histórias, todas vindas de decisões que já estavam documentadas e esperando implementação. Nenhuma foi inventada para a entrega: as três primeiras pendências do backlog do README eram exatamente estas.
+Cinco histórias. As quatro primeiras vieram de decisões que já estavam documentadas e esperando implementação — as três primeiras pendências do backlog do README eram exatamente essas. A quinta, a H-08, nasceu de usar o sistema depois de pronto e encontrar dois defeitos de projeto, descritos no [ADR 0009](adr/0009-estado-e-cidade-escolhidos-em-lista.md).
 
 | # | História | Critérios | Código | Teste |
 |---|---|---|---|---|
@@ -16,10 +16,13 @@ Quatro histórias, todas vindas de decisões que já estavam documentadas e espe
 | **H-06** | Como **coordenação da minha cidade**, quero ver os pedidos de conta de ONG e aprovar ou recusar, para que só ONGs que eu conheço aceitem doações | CA-06.1 a CA-06.6 | `listarOngsPendentes` e `avaliarOng` em `src/usuarios.js`; tela *Pedidos de conta* | `tests/aprovacao.test.js` |
 | **H-03** | Como **ONG**, quero que doações com prazo vencido não apareçam nem possam ser aceitas, para não deslocar voluntário para comida que não pode ser distribuída | CA-03.1 a CA-03.5 | `hojeNaRede` e `diaValido` em `src/regras.js`; `criarDoacao`, `listarDisponiveis` e `aceitar` em `src/doacoes.js` | `tests/prazo.test.js` |
 | **H-07** | Como **ONG**, quero confirmar a retirada ou cancelar o aceite, e como **doador**, quero ver o que aconteceu com o que publiquei | CA-07.1 a CA-07.8 | `confirmarRetirada`, `cancelarAceite` e `listarRecentes` em `src/doacoes.js` | `tests/historico.test.js` |
+| **H-08** | Como **ONG**, quero ver só as doações da minha cidade, e como **doador**, quero informar minha cidade ao criar a conta | CA-08.1 a CA-08.5 | `src/localidades.js`; validação em `cadastrar`; filtro em `listarDisponiveis` e conferência em `aceitar` | `tests/localidade.test.js` |
 
-Os critérios de aceite, um por um, com o enunciado em Dado/Quando/Então e o nome do teste que prova cada um, estão em [`docs/analise.md`](analise.md). Duas regras de negócio novas saíram daqui: a **RN-04** (só ONG aprovada aceita doações) e a **RN-05** (só quem aceitou confirma a retirada ou cancela), e a **RN-03**, escrita na Unidade 1, saiu de "pendente".
+Os critérios de aceite, um por um, com o enunciado em Dado/Quando/Então e o nome do teste que prova cada um, estão em [`docs/analise.md`](analise.md). Três regras de negócio novas saíram daqui — a **RN-04** (só ONG aprovada aceita), a **RN-05** (só quem aceitou confirma a retirada ou cancela) e a **RN-06** (a ONG vê e aceita só as doações da sua cidade) —, e a **RN-03**, escrita na Unidade 1, saiu de "pendente".
 
-**Por que estas quatro.** A H-05 e a H-06 tiram a equipe de desenvolvimento do caminho de toda ONG nova, que é o problema central da análise: um canal "dependente de uma pessoa". A H-03 fecha a última regra de negócio que estava escrita e sem código desde a Unidade 1. A H-07 responde a única incerteza da análise que tinha sido empurrada para o backlog (INC-05) e, de quebra, **torna o OBJ-01 calculável pela primeira vez** — até esta entrega, o indicador que define o problema do projeto não podia ser medido, porque o sistema não registrava retirada nenhuma.
+**Por que estas cinco.** A H-05 e a H-06 tiram a equipe de desenvolvimento do caminho de toda ONG nova, que é o problema central da análise: um canal "dependente de uma pessoa". A H-03 fecha a última regra de negócio que estava escrita e sem código desde a Unidade 1. A H-07 responde a única incerteza da análise que tinha sido empurrada para o backlog (INC-05) e, de quebra, **torna o OBJ-01 calculável pela primeira vez** — até esta entrega, o indicador que define o problema do projeto não podia ser medido, porque o sistema não registrava retirada nenhuma. A H-08 fecha dois defeitos que só apareceram ao usar o sistema: cidade digitada à mão quebrava a rede com um erro de uma letra, e sem cidade no doador uma ONG de Joinville via doação publicada em Blumenau.
+
+**Duas regras desta entrega foram substituídas dentro da própria entrega**, e isso está registrado em vez de escondido. A aprovação por cidade (ADR 0006, história H-06) durou algumas horas: ao usar, vimos que a rede tem uma coordenação só, e que um pedido de cidade sem coordenador ficava parado sem ninguém que pudesse decidir — pior que o gargalo que a regra queria evitar. O [ADR 0010](adr/0010-aprovacao-central-da-conta-de-ong.md) a substituiu, e **dois testes viraram o oposto do que eram**. É o tipo de reversão que a documentação costuma apagar; aqui ela está no ADR, no critério de aceite e no comentário do teste.
 
 ## 2. Decisões de projeto
 
@@ -32,6 +35,8 @@ Cada decisão tem um ADR em `docs/adr/`, com contexto, alternativas, trade-offs,
 | [**0005**](adr/0005-postgresql-no-lugar-do-sqlite.md) *(revisado)* | **Migração do SQLite para o PostgreSQL** | SQLite num servidor com disco · SQLite remoto (Turso) · PostgreSQL no Neon | Revisado nesta entrega com as evidências de duas mudanças de modelo feitas **depois** da migração. As duas são `ALTER TYPE ... ADD VALUE`, instrução que o SQLite não tem: lá, mudar um conjunto de valores aceitos obriga a recriar a tabela e copiar os dados. A decisão se confirmou |
 | [**0007**](adr/0007-agora-como-parametro-e-dia-de-sao-paulo.md) | **Como o sistema sabe que o prazo venceu** (decisão D1) | As regras leem o relógio do servidor · o "agora" vira parâmetro das regras | O critério CA-03.3, que a análise já apontava como a fronteira da regra: com o relógio lido por dentro, o teste do limite exato de hoje não existe de forma honesta |
 | [**0008**](adr/0008-retirada-confirmada-e-cancelamento-do-aceite.md) | **O que acontece com a doação aceita e não retirada** (decisão D2) | Liberação automática em 4 h · cancelamento manual pela ONG · (descartada) cancelamento pelo doador | A liberação automática precisa de algo que rode no tempo, e a função da Vercel só acorda quando chega uma requisição. O cancelamento manual entrega hoje as duas coisas que faltavam: devolver a doação à lista e os horários que o OBJ-01 mede |
+| [**0009**](adr/0009-estado-e-cidade-escolhidos-em-lista.md) | **Estado e cidade em toda conta, escolhidos numa lista** | Texto digitado · lista curada no código · todos os municípios do IBGE (embutidos ou por API) | A cidade é comparada por igualdade exata, então texto livre deixava `"Joinvile"` criar uma conta que não encontrava a rede, **sem mensagem de erro nenhuma**. A lista completa do IBGE ofereceria cidades onde não há doador nem ONG |
+| [**0010**](adr/0010-aprovacao-central-da-conta-de-ong.md) | **Quem aprova a conta de ONG** — substitui a regra do ADR 0006 | Manter a aprovação por cidade · aprovação central · dois níveis (cidade + geral) | A rede tem uma coordenação, não uma por cidade. A regra por cidade deixava o pedido de uma cidade sem coordenador esperando **ninguém**, que é pior que esperar um de nós. Os dois níveis acertam no desenho e erram no momento |
 
 ### Decisão implementada nesta entrega, decidida antes
 
@@ -66,13 +71,16 @@ Três requisitos que **mudaram o desenho do sistema**. Para cada um: de onde ele
 | Decisão de desenho | Por quê |
 |---|---|
 | A publicação tem **três campos** e nada mais | Critério do CONF-01: um campo só é obrigatório se a norma sanitária exigir ou se a ONG não puder decidir sem ele |
-| **O doador não informa cidade**, mesmo tendo a ONG passado a informar nesta entrega | Foi a decisão mais direta tomada por este requisito. A cidade é necessária para saber **qual coordenação** aprova a ONG; no cadastro do doador ela não serve para nada hoje, e campo a mais no cadastro dele é doador a menos |
+| O doador informa estado e cidade **no cadastro da conta**, e não a cada doação | Aqui erramos primeiro e corrigimos: tínhamos deixado o doador sem cidade "pelo CONF-01". Relendo a análise, o CONF-01 decide os campos obrigatórios **da doação**, e a hipótese H1 cronometra o tempo até a tela de confirmação da **publicação**. O cadastro da conta é uma vez por estabelecimento e está fora do caminho medido. A premissa errada e a correção estão no [ADR 0009](adr/0009-estado-e-cidade-escolhidos-em-lista.md) |
+| Os dois campos de localidade são **boxes de escolha**, não digitação | No celular, escolher numa lista é mais rápido que digitar "Joinville" com teclado virtual — o requisito de velocidade e a correção do dado apontam para o mesmo lado aqui |
 | A sessão dura **30 dias**, num cookie `HttpOnly` | O login é pago uma vez por celular, e não a cada doação: o atrito fica fora do caminho medido pela H1 |
 | Hospedagem que **não dorme** ([ADR 0002](adr/0002-hospedagem-na-vercel.md)) | O servidor gratuito do Render leva cerca de um minuto para acordar: o dobro do orçamento inteiro do doador |
 | O campo de data recebe `min` com o dia de hoje | O celular recusa um prazo no passado sem gastar uma ida e volta até o servidor ([ADR 0007](adr/0007-agora-como-parametro-e-dia-de-sao-paulo.md)) |
 | A tela **não mostra** o botão de aceitar para conta de ONG não aprovada | Mesma ideia, do outro lado: a tela não oferece uma ação que a regra vai recusar |
 
 **O que este requisito nos impediu de fazer:** pedir origem, condição de conservação, temperatura e horário de preparo na publicação — tudo o que a vigilância sanitária gostaria de ter. Isso está registrado como risco aceito na análise, e não como esquecimento.
+
+**O que aprendemos sobre este requisito:** ele é sobre **o caminho da publicação**, e não sobre o sistema inteiro. Usá-lo para recusar qualquer campo em qualquer lugar foi um erro nosso, e produziu uma decisão ruim que tivemos de desfazer na mesma entrega.
 
 **Como saberíamos que não está cumprido:** mediana acima de 60 s ou mais de 20% de cadastros abandonados, pelo protocolo de [`docs/experimento-h1.md`](experimento-h1.md). **Ainda não medimos com doadores reais** — é o que falta para fechar este requisito, e nenhuma decisão de código substitui essa medição.
 
@@ -90,12 +98,13 @@ Três requisitos que **mudaram o desenho do sistema**. Para cada um: de onde ele
 | O cadastro da tela cria **doador ou ONG pendente, e mais nada** | Ninguém vira coordenação preenchendo o formulário. É o que o critério CA-04.2 passou a proteger nesta entrega |
 | Aceitar exige conta de ONG **aprovada pela coordenação da cidade** (RN-04) | [ADR 0006](adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md): quem aprova conhece as ONGs da sua cidade |
 | A situação da conta é **lida do banco a cada requisição**, não guardada na sessão | Uma aprovação vale na hora, e uma conta recusada perde o acesso na hora, sem esperar a sessão expirar |
-| A coordenação só decide sobre contas **da sua cidade** | Sem isso, um coordenador aprovaria ONGs de qualquer cidade. O filtro por cidade usa `?? null` de propósito: no Prisma, uma cidade `undefined` apagaria o filtro e devolveria os pedidos de todas as cidades |
 | Só a ONG que aceitou confirma a retirada ou cancela (RN-05) | [ADR 0008](adr/0008-retirada-confirmada-e-cancelamento-do-aceite.md): nem o doador, nem outra ONG, nem a coordenação |
+| A ONG só aceita doação **da própria cidade** (RN-06), e a regra está no servidor | A lista já esconde as outras cidades, mas esconder não é proteger: a rota de aceite recusa com `403` quem chamar direto com o número da doação ([ADR 0009](adr/0009-estado-e-cidade-escolhidos-em-lista.md)) |
+| Estado e cidade são validados **contra a lista, no servidor** | O box da tela evita o erro de digitação; a validação no servidor é o que garante a regra, porque a tela não é a única porta da API |
 
 **O que este requisito nos custou:** mais código que a alternativa do link de acesso pessoal, e um login na primeira vez que o doador usa o sistema — atrito que o RNF-01 queria evitar. Os dois requisitos se chocam aqui, e a saída foi a sessão de 30 dias: o atrito é pago uma vez, fora do caminho da publicação.
 
-**Como saberíamos que não está cumprido:** qualquer requisição conseguir publicar, aceitar, aprovar ou cancelar sem a conta certa. **25 dos 57 testes** existem só para isso. Para confirmar que eles têm dente, desligamos a regra do aceite (trocamos `exigirOngAprovada` por `exigirPapel`) e três testes quebraram na hora; depois restauramos a regra.
+**Como saberíamos que não está cumprido:** qualquer requisição conseguir publicar, aceitar, aprovar ou cancelar sem a conta certa. **29 dos 66 testes** existem só para isso. Para confirmar que eles têm dente, desligamos duas regras, uma por vez, e vimos quebrar exatamente o que devia: trocar `exigirOngAprovada` por `exigirPapel` derrubou 3 testes do aceite, e desligar a conferência de cidade no aceite derrubou o teste "recusa o aceite de doação de outra cidade, mesmo sabendo o número dela". Depois restauramos as duas.
 
 ### RNF-03 — Os testes rodam com um comando, sem internet e sem senha
 
@@ -124,8 +133,9 @@ Como sabemos que esta entrega está de pé:
 | Critério | Como verificamos | Situação |
 |---|---|---|
 | Cada critério de aceite aponta para um teste **com nome** | `docs/analise.md`, seção Critérios de aceite | Atende. CA-01 a CA-07, com uma exceção: o CA-03 não tem teste para o prazo em horas, porque a regra é por dia, de propósito |
-| Os testes cobrem erro, e não só o caminho feliz | 25 dos 57 testes verificam recusas | Atende |
-| Os testes **falham** quando a regra sai | Mutação manual: `exigirOngAprovada` → `exigirPapel` quebrou 3 testes; fixture com data fixa quebrou 23 | Atende |
+| Os testes cobrem erro, e não só o caminho feliz | 29 dos 66 testes verificam recusas | Atende |
+| Os testes **falham** quando a regra sai | Mutação manual: `exigirOngAprovada` → `exigirPapel` quebrou 3 testes; desligar a cidade no aceite quebrou 1; fixture com data fixa quebrou 23 | Atende |
+| O sistema funciona contra o banco de verdade, e não só no PGlite | Verificação ponta a ponta no Neon, com o banco semeado: a ONG de Joinville vê 2 doações e não vê a de Blumenau nem a vencida; o aceite fora da cidade dá `403`; a coordenação de Joinville vê pendentes de Joinville **e** Blumenau | Atende |
 | Toda mudança entra por Pull Request, com CI verde e revisão de outro integrante | Histórico do repositório | Atende |
 | Mudança de banco entra no mesmo PR, como migration versionada | `prisma/migrations/`, duas pastas novas nesta entrega | Atende |
 | A decisão documentada e o código concordam | O [ADR 0006](adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md) tem uma tabela regra → código → teste | Atende |
@@ -149,5 +159,8 @@ O modelo de dados está em [`prisma/schema.prisma`](../prisma/schema.prisma), e 
 | Rascunho de `docs/decisoes-de-projeto.md`: decisões D1 a D3, alternativas, tabela de trade-offs e justificativa | Claude Code (Anthropic) | Escolhemos as três decisões e a D3 para a tabela de trade-offs, revisamos o texto e conferimos cada citação contra a nossa análise da Unidade 1 |
 | ADRs 0005 e 0006, status do ADR 0003 e risco de crescimento no ADR 0001 | Claude Code (Anthropic) | Escolhemos o ADR 0003 para revisar diante da rede em várias cidades, decidimos manter o banco no Neon e revisamos os textos |
 | **Entrega 2** — código das histórias H-03, H-05, H-06 e H-07, as duas migrations, os 34 testes novos, os ADRs 0007 e 0008 e a revisão do ADR 0005 | Claude Code (Anthropic) | As decisões foram nossas: escolhemos implementar o ADR 0006 que já estava aceito, escolhemos a alternativa A da D1 e a B da D2, e escolhemos deixar a D3 em aberto. Cobramos evidência em vez de aceitar afirmação: mandamos **medir** a quebra que a nota da H-03 previa (23 testes) em vez de escrever um número de memória, e **desligar** a regra do aceite para ver se os testes novos tinham dente (3 quebraram). Dois problemas foram encontrados nessa revisão: a ordem das verificações de retirada dava a mensagem errada para uma doação que ninguém aceitou, e um filtro `undefined` no Prisma mostraria à coordenação os pedidos de todas as cidades |
+| **Entrega 2, segunda rodada** — história H-08, os ADRs 0009 e 0010, a lista de localidades, o script de seed e a reversão de duas regras | Claude Code (Anthropic) | **A mudança partiu de nós, usando o sistema**, e não da IA: percebemos que a cidade digitada quebrava a rede com um erro de uma letra, que o doador precisava de cidade e que a aprovação por cidade travava pedido de cidade sem coordenador. A IA havia justificado "doador sem cidade" com o CONF-01, e nós mandamos conferir contra a análise: o CONF-01 trata dos campos da doação. Ela também argumentou contra a aprovação central antes de implementá-la, lembrando os motivos do ADR 0006 — **nós decidimos mesmo assim**, e exigimos que o ADR 0010 registrasse o custo e a condição de volta em vez de fingir que a primeira decisão estava errada |
 
 **Onde a IA não decidiu nada:** quais histórias entrariam, qual alternativa de cada decisão, o que fica no backlog, e o que escrevemos como consequência negativa de cada ADR.
+
+**O que esta entrega nos ensinou sobre usar IA:** ela produz rápido e duvida pouco. As correções que mais importaram vieram de nós mandando **medir** ou **desligar** algo, e de nós usando o sistema pronto. Texto fluente esconde afirmação não verificada melhor que texto ruim — foi assim que um "sete testes quebraram" que ninguém mediu quase entrou na análise.

@@ -27,9 +27,19 @@ export async function criarDoacao(usuario, dados = {}, agora = new Date()) {
   return repo.inserir({ ...doacao, doadorId: usuario.id });
 }
 
+// A ONG vê as doações da cidade dela, e nada mais (RN-06, ADR 0009): voluntário
+// não atravessa o estado para buscar 10 porções de sopa.
 export async function listarDisponiveis(usuario, agora = new Date()) {
   exigirLogin(usuario);
-  return repo.listarDisponiveis(hojeNaRede(agora));
+
+  // Sem localidade não existe lista. Devolver tudo seria mostrar a uma ONG as
+  // doações de outras cidades, e é o tipo de erro que passa calado — toda conta
+  // tem estado e cidade obrigatórios desde o ADR 0009.
+  if (!usuario.estado || !usuario.cidade) {
+    throw falha('sua conta está sem cidade registrada. Fale com a coordenação');
+  }
+
+  return repo.listarDisponiveis(hojeNaRede(agora), { estado: usuario.estado, cidade: usuario.cidade });
 }
 
 // O que já aconteceu: o doador vê o que publicou e quem levou; a ONG vê o que
@@ -45,15 +55,26 @@ export async function aceitar(usuario, id, agora = new Date()) {
   exigirOngAprovada(usuario);
   const doacaoId = identificador(id, 'doação');
 
+  // A cidade é conferida antes da escrita, e não dentro dela, porque cidade não
+  // muda: não há corrida a proteger aqui. A corrida que importa é a de duas
+  // ONGs aceitando ao mesmo tempo, e quem resolve essa continua sendo a única
+  // instrução condicional abaixo (RN-02).
+  const ondeEsta = await repo.buscarLocalidadeDoDoador(doacaoId);
+  if (!ondeEsta) {
+    throw falha('doação não encontrada');
+  }
+  if (ondeEsta.estado !== usuario.estado || ondeEsta.cidade !== usuario.cidade) {
+    throw falha(`esta doação é de ${ondeEsta.cidade}, e sua ONG atende ${usuario.cidade}`, 403);
+  }
+
   const aceita = await repo.aceitar(doacaoId, usuario, hojeNaRede(agora), agora);
   if (aceita) return aceita;
 
   // O aceite é uma única instrução, que só altera a doação se ela ainda estiver
-  // disponível e no prazo (RN-02, RN-03). Se não alterou nada, descobrimos por quê.
+  // disponível e no prazo (RN-02, RN-03). Se não alterou nada, descobrimos por
+  // quê — relendo, porque entre a conferência acima e a escrita outra ONG pode
+  // ter aceitado.
   const doacao = await repo.buscarPorId(doacaoId);
-  if (!doacao) {
-    throw falha('doação não encontrada');
-  }
   if (doacao.status === 'aceita') {
     throw falha(`esta doação já foi aceita por ${doacao.ong}`);
   }

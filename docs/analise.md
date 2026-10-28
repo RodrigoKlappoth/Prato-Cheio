@@ -94,7 +94,8 @@ Regras que ninguém enuncia — estão no hábito de quem opera. Aqui viram fras
 | RN-02 | "Quem chegar primeiro leva" | Uma doação **aceita por uma ONG deixa de estar disponível para as demais**: muda para o estado *aceita*, registra qual ONG aceitou e sai da lista de disponíveis. Uma segunda tentativa de aceite é recusada, informando quem já aceitou. | `tests/doacoes.test.js` → "remove a doação da lista de disponíveis depois de aceita" e "recusa aceitar uma doação que já foi aceita por outra ONG" | Implementada |
 | RN-03 | "Se passou do horário, aquilo não presta mais" | Doação cujo **prazo de retirada já passou não aparece na lista de disponíveis e não pode ser aceita**. A tentativa de aceite é recusada com o motivo "prazo de retirada vencido". O limite é o dia de hoje em São Paulo, inclusive: o que vence hoje ainda circula. Publicar com prazo no passado também é recusado. | `tests/prazo.test.js` → "CA-03.1 — não mostra na lista a doação com prazo de ontem", "CA-03.2 — recusa o aceite de uma doação com o prazo vencido" e os dois testes do CA-03.3 | Implementada na U2 ([ADR 0007](adr/0007-agora-como-parametro-e-dia-de-sao-paulo.md)) |
 | RN-05 | "Se a ONG desistir, ela avisa no grupo e o doador publica de novo" | **Só a ONG que aceitou** confirma a retirada ou cancela o aceite. O cancelamento devolve a doação para `disponivel` e apaga o aceite; a retirada confirmada é o fim da linha e não pode ser desfeita. | `tests/historico.test.js` → "devolve a doação para a lista das outras ONGs, sem rastro do aceite", "recusa cancelar o aceite de outra ONG" e "recusa cancelar depois de a retirada estar confirmada" | Implementada na U2 ([ADR 0008](adr/0008-retirada-confirmada-e-cancelamento-do-aceite.md)) |
-| RN-04 | "Essas ONGs aí eu conheço" | Só **ONG com conta aprovada pela coordenação da sua cidade** aceita doações. ONG com conta pendente ou recusada entra e vê a lista, mas o aceite é recusado com o motivo, e a doação continua *disponivel*. | `tests/aprovacao.test.js` → "deixa a ONG pendente ver a lista, mas recusa o aceite dela" e "recusa o aceite da ONG que a coordenação recusou" | Implementada na U2 ([ADR 0006](adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md)) |
+| RN-04 | "Essas ONGs aí eu conheço" | Só **ONG com conta aprovada pela coordenação** aceita doações. ONG com conta pendente ou recusada entra e vê a lista, mas o aceite é recusado com o motivo, e a doação continua *disponivel*. Qualquer conta de coordenação aprova ONG de qualquer cidade da rede. | `tests/aprovacao.test.js` → "deixa a ONG pendente ver a lista, mas recusa o aceite dela", "recusa o aceite da ONG que a coordenação recusou" e "aprova uma ONG de outra cidade, porque a coordenação atende a rede toda" | Implementada na U2 ([ADR 0006](adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md) e [ADR 0010](adr/0010-aprovacao-central-da-conta-de-ong.md)) |
+| RN-06 | "A gente atende aqui no bairro" | **Toda conta tem estado e cidade**, escolhidos numa lista, e a ONG **vê e aceita só as doações da sua cidade**. A doação herda a cidade de quem publicou. Tentar aceitar doação de outra cidade é recusado com o motivo, mesmo com o número da doação em mãos. | `tests/localidade.test.js` → "separa as listas de duas ONGs em cidades diferentes" e "recusa o aceite de doação de outra cidade, mesmo sabendo o número dela" | Implementada na U2 ([ADR 0009](adr/0009-estado-e-cidade-escolhidos-em-lista.md)) |
 
 **Contraexemplo do que não vale como regra:** "o sistema deve ser rápido", "tratar os casos especiais". Não têm sujeito, condição nem efeito — ninguém consegue dizer se foram cumpridas.
 
@@ -109,6 +110,7 @@ Regras que ninguém enuncia — estão no hábito de quem opera. Aqui viram fras
 | H-05 *(U2)* | Como **ONG**, quero criar minha própria conta informando a minha cidade, para entrar na rede sem esperar que alguém da equipe de desenvolvimento me cadastre. | **I**ndependent falha, e de propósito: a conta nasce pendente, então sem a H-06 ninguém a aprova e ela nunca aceita uma doação. **V**aluable sozinha é fraca pelo mesmo motivo. As duas entram juntas. Nasce do [ADR 0006](adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md). |
 | H-06 *(U2)* | Como **coordenação da minha cidade**, quero ver os pedidos de conta de ONG da minha cidade e aprovar ou recusar cada um, para que só ONGs que eu conheço aceitem doações. | **S**mall é a mais fraca: traz um papel novo, uma tela nova e um estado novo na conta. Não fatiamos porque aprovar sem o cadastro da H-05 não tem o que aprovar. **T**estable é forte: cada decisão fica gravada com quem decidiu e quando. |
 | H-07 *(U2)* | Como **ONG**, quero confirmar a retirada ou cancelar o aceite, e **como doador**, quero ver o que aconteceu com o que publiquei, para que a comida que uma ONG não vai buscar volte para a lista em vez de vencer reservada. | **I**ndependent é fraca: depende de H-01 e H-02 existirem. **V**aluable é a mais forte das três partes juntas, e é por isso que não fatiamos: o cancelamento sozinho resolveria o risco da ONG que não retira, mas sem a confirmação de retirada o OBJ-01 continuaria sem poder ser medido, e sem o histórico ninguém encontraria a doação para cancelar. Nasce da decisão D2 e do [ADR 0008](adr/0008-retirada-confirmada-e-cancelamento-do-aceite.md). |
+| H-08 *(U2)* | Como **ONG**, quero ver só as doações da minha cidade, e **como doador**, quero informar minha cidade ao criar a conta, para que ninguém desloque voluntário para outra cidade atrás de 10 porções de sopa. | **S**mall é boa, mas a história junta duas coisas por necessidade: informar a cidade sem filtrar a lista deixaria um campo obrigatório que não faz nada, e filtrar sem o doador informar a cidade é impossível, porque a doação herda a cidade de quem publicou. **T**estable é forte: duas ONGs em cidades diferentes veem listas diferentes, e isso se escreve num teste. Nasce do [ADR 0009](adr/0009-estado-e-cidade-escolhidos-em-lista.md). |
 
 **Nota de implementação da H-03 (dívida já identificada):** o fixture `SOPA` em `tests/doacoes.test.js` usa `validade: '2026-08-01'` — uma data que **já passou**. No dia em que RN-03 for implementada, os testes hoje verdes de H-01 e H-02 quebram em bloco, porque a doação de teste passa a nascer vencida. A correção vem junto com a história: o prazo passa a ser calculado relativamente (`hoje + 1 dia`) ou o "agora" vira parâmetro das funções de `src/doacoes.js`. Registrar isso agora evita descobrir na véspera da entrega.
 
@@ -255,8 +257,42 @@ Testes em `tests/historico.test.js`.
 - **CA-07.8 — a coordenação não tem histórico de doações**
   **Dado** que entrei como coordenação,
   **Quando** abro as doações recentes,
-  **Então** o sistema responde `403`: a coordenação decide sobre contas, e doação não tem cidade para ela filtrar.
+  **Então** o sistema responde `403`: a coordenação decide sobre contas, não sobre comida.
   → "a coordenação não tem histórico de doações, porque a doação não tem cidade"
+
+### H-08 — Estado e cidade em toda conta, e a lista por cidade (RN-06, ADR 0009) — Unidade 2
+
+Testes em `tests/localidade.test.js`.
+
+- **CA-08.1 — a rede diz onde atende, antes do login**
+  **Dado** que ainda não tenho conta,
+  **Quando** a tela do cadastro carrega,
+  **Então** ela recebe a lista de estados e cidades atendidos sem precisar de login, porque é com ela que os dois boxes são montados.
+  → "entrega a lista de estados e cidades sem exigir login, porque o cadastro precisa dela antes"
+
+- **CA-08.2 — nenhuma conta sem estado e cidade**
+  **Dado** um cadastro de doador sem estado e sem cidade,
+  **Quando** é enviado,
+  **Então** o sistema responde `400` nomeando os dois campos, e nada é gravado.
+  → "recusa o cadastro de doador sem estado e sem cidade"
+
+- **CA-08.3 — a cidade vem da lista, e não da digitação**
+  **Dado** a cidade `"Joinvile"`, com uma letra a menos, ou o estado `"SP"`,
+  **Quando** tento criar a conta,
+  **Então** o sistema responde `400` dizendo que a rede não atende, e nada é gravado.
+  → "recusa cidade que não está na lista, mesmo com o estado certo" e "recusa estado que a rede não atende". É o critério que fecha o erro silencioso: antes, `"Joinvile"` criava uma conta que simplesmente não encontrava a rede. A sigla do estado é aceita em minúsculo → "aceita a sigla do estado em minúsculo".
+
+- **CA-08.4 — cada ONG vê a sua cidade**
+  **Dado** uma doação publicada em Joinville e uma em Blumenau,
+  **Quando** a ONG de Joinville e a de Blumenau consultam a lista,
+  **Então** cada uma vê exatamente a doação da sua cidade.
+  → "separa as listas de duas ONGs em cidades diferentes"
+
+- **CA-08.5 — esconder não é proteger**
+  **Dado** uma doação de Joinville, que não aparece na lista da ONG de Blumenau,
+  **Quando** essa ONG chama a rota de aceite direto, com o número da doação,
+  **Então** o sistema responde `403` nomeando as duas cidades, e a doação continua `disponivel`.
+  → "recusa o aceite de doação de outra cidade, mesmo sabendo o número dela". A lista filtrada é conveniência; a regra no servidor é o que protege.
 
 ### H-04 — Doador e ONG entram com e-mail e senha (RN-02, ADR 0003) — Unidade 2
 
@@ -324,7 +360,7 @@ Testes em `tests/aprovacao.test.js`.
   **Dado** um cadastro de ONG com a cidade em branco (ou só com espaços),
   **Quando** tento criar a conta,
   **Então** o sistema responde `400` nomeando *cidade*, e nenhuma conta é gravada.
-  → "recusa o cadastro de ONG sem cidade, porque a coordenação é por cidade". A cidade é obrigatória porque é ela que define **qual** coordenação decide sobre a conta.
+  → "recusa ONG sem cidade", em `tests/localidade.test.js`. O critério nasceu porque a cidade definia **qual** coordenação decidia sobre a conta; com o [ADR 0010](adr/0010-aprovacao-central-da-conta-de-ong.md) a aprovação deixou de ser por cidade, e a cidade continua obrigatória por outro motivo, mais forte: é ela que define quais doações a ONG vê (RN-06).
 
 - **CA-05.3 — pendente vê, mas não aceita**
   **Dado** que minha conta de ONG está pendente e existe uma doação disponível,
@@ -348,11 +384,11 @@ Testes em `tests/aprovacao.test.js`.
 
 Testes em `tests/aprovacao.test.js`.
 
-- **CA-06.1 — cada coordenação vê só a sua cidade**
-  **Dado** que coordeno Santo André e existem um pedido pendente em Santo André, um pedido pendente em Diadema e uma ONG já aprovada em Santo André,
+- **CA-06.1 — a coordenação vê os pendentes de toda a rede** *(invertido na própria U2)*
+  **Dado** que existem um pedido pendente em Joinville, um pedido pendente em Blumenau e uma ONG já aprovada,
   **Quando** abro os pedidos,
-  **Então** vejo exatamente um pedido: o pendente de Santo André.
-  → "mostra só os pedidos pendentes da cidade de quem coordena"
+  **Então** vejo os **dois** pendentes, com a cidade de cada um, e a ONG já aprovada fica fora.
+  → "mostra os pedidos pendentes de todas as cidades da rede". **Este critério já existiu ao contrário:** na primeira versão da H-06 ele dizia "cada coordenação vê só a sua cidade" e o teste se chamava "mostra só os pedidos pendentes da cidade de quem coordena". O [ADR 0010](adr/0010-aprovacao-central-da-conta-de-ong.md) substituiu a regra, porque a rede tem uma coordenação só e o pedido de uma cidade sem coordenador ficava parado sem ninguém que pudesse decidir.
 
 - **CA-06.2 — aprovar libera o aceite e deixa rastro**
   **Dado** um pedido pendente da minha cidade,
@@ -372,11 +408,11 @@ Testes em `tests/aprovacao.test.js`.
   **Então** o sistema responde `403` e o pedido continua `pendente`.
   → "recusa quem não é da coordenação, mesmo entrando como doador ou ONG"
 
-- **CA-06.5 — ninguém decide fora da sua cidade**
-  **Dado** que coordeno Santo André e o pedido é de Diadema,
-  **Quando** tento aprovar,
-  **Então** o sistema responde `403`, a mensagem nomeia as duas cidades, e o pedido continua `pendente`.
-  → "recusa aprovar uma ONG de outra cidade"
+- **CA-06.5 — a coordenação decide fora da própria cidade** *(invertido na própria U2)*
+  **Dado** que a conta de coordenação é de Joinville e o pedido é de Blumenau,
+  **Quando** aprovo,
+  **Então** o sistema responde `200` e a ONG de Blumenau passa a aceitar doações da cidade dela.
+  → "aprova uma ONG de outra cidade, porque a coordenação atende a rede toda". **Também já existiu ao contrário:** o critério dizia "ninguém decide fora da sua cidade" e o teste esperava `403`. Mesmo motivo do CA-06.1: [ADR 0010](adr/0010-aprovacao-central-da-conta-de-ong.md).
 
 - **CA-06.6 — pedido que não existe, conta que não é ONG, e sem login**
   **Dado** o id de um doador, um id inexistente, um id que não é número, ou nenhum login,
@@ -437,5 +473,6 @@ O que geramos com IA, o que verificamos e o que alteramos.
 | História H-04, critérios CA-04.1 a CA-04.8 e atualização do CA-02.5 | Claude Code (Anthropic) | Escolhemos e-mail e senha como identificação; revisamos os critérios e conferimos cada um contra o teste correspondente |
 | Histórias H-05 e H-06, regra RN-04, critérios CA-05.1 a CA-06.6 e reescrita do CA-04.2 | Claude Code (Anthropic) | A decisão já estava tomada por nós no ADR 0006; conferimos cada critério contra o nome do teste em `tests/aprovacao.test.js` e verificamos que os 13 testes novos têm dente, desligando a regra do aceite e vendo 3 deles falharem |
 | História H-07, regras RN-03 e RN-05, critérios CA-03.1 a CA-03.5 e CA-07.1 a CA-07.8 | Claude Code (Anthropic) | Escolhemos as alternativas das decisões D1 e D2; medimos a quebra que a nota de implementação da H-03 previa, em vez de escrever o número de memória (23 testes em 4 arquivos); conferimos o fuso de São Paulo com datas reais antes de aceitar a regra |
+| História H-08, regra RN-06, critérios CA-08.1 a CA-08.5 e a reescrita de CA-05.2, CA-06.1 e CA-06.5 | Claude Code (Anthropic) | A mudança partiu de nós, ao usar o sistema: a cidade digitada deixava a rede quebrar com um typo, o doador não tinha cidade e a aprovação por cidade travava pedido de cidade sem coordenador. A IA tinha justificado "doador sem cidade" com o CONF-01, e **nós mandamos conferir**: o CONF-01 trata dos campos da doação, não dos da conta. A premissa errada está registrada no [ADR 0009](adr/0009-estado-e-cidade-escolhidos-em-lista.md) em vez de apagada |
 
 

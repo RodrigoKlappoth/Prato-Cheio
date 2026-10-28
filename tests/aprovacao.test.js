@@ -3,11 +3,11 @@ import request from 'supertest';
 import { criarApp } from '../src/app.js';
 import { banco } from '../src/db.js';
 import { criarBancoEmMemoria, limparBanco, fecharBancoEmMemoria } from './banco-em-memoria.js';
-import { SOPA, SENHA, CIDADE, entrarComoDoador, entrarComoOng, entrarComoCoordenacao, cadastrarOngPelaTela } from './apoio.js';
+import { SOPA, SENHA, ESTADO, CIDADE, OUTRA_CIDADE, entrarComoDoador, entrarComoOng, entrarComoCoordenacao, cadastrarOngPelaTela } from './apoio.js';
 
 const app = criarApp();
 
-const COZINHA = { nome: 'Cozinha da Vila', email: 'contato@cozinhadavila.org', senha: SENHA, cidade: CIDADE, papel: 'ong' };
+const COZINHA = { nome: 'Cozinha da Vila', email: 'contato@cozinhadavila.org', senha: SENHA, estado: ESTADO, cidade: CIDADE, papel: 'ong' };
 
 beforeAll(criarBancoEmMemoria);
 
@@ -69,17 +69,25 @@ describe('H-05 — a ONG cria a própria conta', () => {
 });
 
 describe('H-06 — a coordenação da cidade aprova ou recusa', () => {
-  it('mostra só os pedidos pendentes da cidade de quem coordena', async () => {
+  // Este teste já existiu ao contrário: na primeira versão da H-06 ele se
+  // chamava "mostra só os pedidos pendentes da cidade de quem coordena". O
+  // ADR 0010 substituiu essa regra, e o teste virou com ela.
+  it('mostra os pedidos pendentes de todas as cidades da rede', async () => {
     await cadastrarOngPelaTela(app);
-    await cadastrarOngPelaTela(app, { nome: 'Casa de Apoio', email: 'contato@casadeapoio.org', cidade: 'Diadema' });
+    await cadastrarOngPelaTela(app, {
+      nome: 'Casa de Apoio',
+      email: 'contato@casadeapoio.org',
+      cidade: OUTRA_CIDADE
+    });
     await entrarComoOng(app);
     const coordenacao = await entrarComoCoordenacao(app);
 
     const res = await coordenacao.get('/api/ongs/pendentes');
 
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject([{ nome: COZINHA.nome, email: COZINHA.email, cidade: CIDADE, situacao: 'pendente' }]);
-    expect(res.body).toHaveLength(1);
+    // As duas pendentes, de cidades diferentes. A ONG já aprovada fica fora.
+    expect(res.body.map((pedido) => pedido.cidade)).toEqual([OUTRA_CIDADE, CIDADE]);
+    expect(res.body[1]).toMatchObject({ nome: COZINHA.nome, email: COZINHA.email, situacao: 'pendente' });
   });
 
   it('aprovar deixa a ONG aceitar e registra quem aprovou e quando', async () => {
@@ -125,16 +133,18 @@ describe('H-06 — a coordenação da cidade aprova ou recusa', () => {
     expect((await banco().usuario.findUnique({ where: { id: conta.id } })).situacao).toBe('pendente');
   });
 
-  it('recusa aprovar uma ONG de outra cidade', async () => {
-    const { conta } = await cadastrarOngPelaTela(app, { cidade: 'Diadema' });
-    const coordenacao = await entrarComoCoordenacao(app);
+  // O oposto do que a H-06 fazia na primeira versão, quando este teste se
+  // chamava "recusa aprovar uma ONG de outra cidade" e esperava 403. A regra
+  // mudou no ADR 0010, e o teste prova a regra nova.
+  it('aprova uma ONG de outra cidade, porque a coordenação atende a rede toda', async () => {
+    const { conta } = await cadastrarOngPelaTela(app, { cidade: OUTRA_CIDADE });
+    const coordenacao = await entrarComoCoordenacao(app, { cidade: CIDADE });
 
     const res = await coordenacao.post(`/api/ongs/${conta.id}/aprovar`).send();
 
-    expect(res.status).toBe(403);
-    expect(res.body.erro).toMatch(/Diadema/);
-    expect(res.body.erro).toMatch(/Santo André/);
-    expect((await banco().usuario.findUnique({ where: { id: conta.id } })).situacao).toBe('pendente');
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ situacao: 'aprovada', cidade: OUTRA_CIDADE });
+    expect((await banco().usuario.findUnique({ where: { id: conta.id } })).situacao).toBe('aprovada');
   });
 
   it('recusa aprovar uma conta que não é de ONG', async () => {
