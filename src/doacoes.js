@@ -1,6 +1,6 @@
 import * as repo from './repositorio.js';
-import { falha, texto, exigirCampos } from './regras.js';
-import { exigirLogin, exigirPapel } from './usuarios.js';
+import { falha, texto, identificador, exigirCampos } from './regras.js';
+import { exigirLogin, exigirPapel, exigirOngAprovada } from './usuarios.js';
 
 const CAMPOS_OBRIGATORIOS = ['tipo', 'quantidade', 'validade'];
 
@@ -23,17 +23,14 @@ export async function listarDisponiveis(usuario) {
 }
 
 export async function aceitar(usuario, id) {
-  exigirPapel(usuario, 'ong', 'só ONGs aceitam doações');
+  exigirOngAprovada(usuario);
 
-  const identificador = Number(id);
-  if (!Number.isInteger(identificador) || identificador <= 0) {
-    throw falha('id de doação inválido');
-  }
+  const doacaoId = identificador(id, 'doação');
 
-  const aceita = await repo.aceitar(identificador, usuario);
+  const aceita = await repo.aceitar(doacaoId, usuario);
   if (aceita) return aceita;
 
-  const doacao = await repo.buscarPorId(identificador);
+  const doacao = await repo.buscarPorId(doacaoId);
   if (!doacao) {
     throw falha('doação não encontrada');
   }

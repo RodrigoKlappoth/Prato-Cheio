@@ -11,6 +11,7 @@
     "db:migrar": "prisma migrate deploy",
     "db:nova-migration": "prisma migrate dev --name",
     "ong:criar": "node --env-file-if-exists=.env --no-warnings=ExperimentalWarning scripts/criar-ong.js",
+    "coordenacao:criar": "node --env-file-if-exists=.env --no-warnings=ExperimentalWarning scripts/criar-coordenacao.js",
     "postinstall": "prisma generate"
   },
   "dependencies": {

@@ -52,13 +52,36 @@
         </div>
         <p class="erro" role="alert" hidden></p>
         <button type="submit" class="botao botao-cheio">Entrar</button>
-        <button type="button" class="botao-texto trocar" id="ir-para-cadastro">Sou doador e ainda não tenho conta</button>
+        <button type="button" class="botao-texto trocar" id="ir-para-cadastro">Ainda não tenho conta</button>
       </form>
 
       <form class="cartao" id="form-criar" novalidate hidden>
-        <h2>Criar conta de doador</h2>
-        <label for="criar-nome">Nome do estabelecimento</label>
+        <h2>Criar conta</h2>
+
+        <fieldset class="escolha">
+          <legend>Quem vai usar esta conta?</legend>
+          <label class="opcao">
+            <input type="radio" name="papel" value="doador" checked>
+            <span class="opcao-texto">
+              <strong>Sou doador</strong>
+              Tenho comida sobrando e quero doar
+            </span>
+          </label>
+          <label class="opcao">
+            <input type="radio" name="papel" value="ong">
+            <span class="opcao-texto">
+              <strong>Sou ONG</strong>
+              Quero retirar as doações da rede
+            </span>
+          </label>
+        </fieldset>
+
+        <label for="criar-nome" id="rotulo-nome">Nome do estabelecimento</label>
         <input id="criar-nome" autocomplete="organization" placeholder="Ex.: Padaria do Seu Paulo">
+        <div class="campo" id="campo-cidade" hidden>
+          <label for="criar-cidade">Cidade</label>
+          <input id="criar-cidade" autocomplete="address-level2" placeholder="Ex.: Santo André">
+        </div>
         <label for="criar-email">E-mail</label>
         <input id="criar-email" type="email" autocomplete="email" inputmode="email">
         <label for="criar-senha">Senha</label>
@@ -67,12 +90,13 @@
           <button type="button" class="botao-texto" data-mostrar-senha="criar-senha" aria-pressed="false">Mostrar</button>
         </div>
         <p class="dica" id="dica-senha">Pelo menos 8 caracteres.</p>
+        <p class="dica" id="dica-ong" hidden>A conta de ONG passa pela aprovação da coordenação da sua cidade antes do primeiro aceite.</p>
         <p class="erro" role="alert" hidden></p>
         <button type="submit" class="botao botao-cheio">Criar conta e entrar</button>
         <button type="button" class="botao-texto trocar" id="ir-para-entrada">Já tenho conta</button>
       </form>
 
-      <p class="nota">É uma ONG da rede? O acesso é criado pela coordenação.</p>
+      <p class="nota">Coordena a rede na sua cidade? O acesso é criado pela equipe do Prato Cheio.</p>
     </section>
 
     <section id="tela-doador" hidden>
@@ -108,8 +132,18 @@
         <h1>Doações disponíveis</h1>
         <button type="button" class="botao botao-contorno botao-pequeno" id="atualizar">Atualizar</button>
       </div>
+      <p class="faixa" id="situacao-da-conta" role="status" hidden></p>
       <p class="apoio" id="contagem" aria-live="polite"></p>
       <ul class="comandas" id="lista"></ul>
+    </section>
+
+    <section id="tela-coordenacao" hidden>
+      <div class="titulo-com-acao">
+        <h1>Pedidos de conta</h1>
+        <button type="button" class="botao botao-contorno botao-pequeno" id="atualizar-pedidos">Atualizar</button>
+      </div>
+      <p class="apoio" id="contagem-pedidos" aria-live="polite"></p>
+      <ul class="comandas" id="pedidos"></ul>
     </section>
   </main>
 

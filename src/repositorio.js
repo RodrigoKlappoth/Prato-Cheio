@@ -25,12 +25,35 @@ export async function aceitar(id, ong) {
   return count === 1 ? buscarPorId(id) : undefined;
 }
 
-export async function inserirUsuario({ nome, email, senhaHash, papel }) {
-  return banco().usuario.create({ data: { nome, email, senha_hash: senhaHash, papel } });
+export async function inserirUsuario({ nome, email, senhaHash, papel, cidade, situacao }) {
+  return banco().usuario.create({
+    data: { nome, email, senha_hash: senhaHash, papel, cidade, situacao }
+  });
 }
 
 export async function buscarUsuarioPorEmail(email) {
   return banco().usuario.findUnique({ where: { email } });
+}
+
+export async function buscarUsuarioPorId(id) {
+  return banco().usuario.findUnique({ where: { id } });
+}
+
+export async function listarOngsPorSituacao(situacao, cidade) {
+  return banco().usuario.findMany({
+    // O ?? null é proteção, não enfeite: no Prisma, uma cidade `undefined`
+    // apagaria o filtro e devolveria os pedidos de todas as cidades.
+    where: { papel: 'ong', situacao, cidade: cidade ?? null },
+    orderBy: { criado_em: 'asc' },
+    select: { id: true, nome: true, email: true, cidade: true, situacao: true, criado_em: true }
+  });
+}
+
+export async function avaliarConta({ id, situacao, avaliadaEm, avaliadaPorId }) {
+  return banco().usuario.update({
+    where: { id },
+    data: { situacao, avaliada_em: avaliadaEm, avaliada_por_id: avaliadaPorId }
+  });
 }
 
 export async function inserirSessao({ token, usuarioId, expiraEm }) {

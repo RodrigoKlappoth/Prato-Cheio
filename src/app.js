@@ -55,7 +55,7 @@ export function criarApp() {
   });
 
   app.post('/api/cadastro', responder(async (req, res) => {
-    const { usuario, token } = await usuarios.cadastrarDoador(req.body);
+    const { usuario, token } = await usuarios.cadastrarPeloSite(req.body);
     gravarSessao(res, token);
     return usuario;
   }, 201));
@@ -73,6 +73,12 @@ export function criarApp() {
   }));
 
   app.get('/api/eu', responder((req) => usuarios.exigirLogin(req.usuario)));
+
+  app.get('/api/ongs/pendentes', responder((req) => usuarios.listarOngsPendentes(req.usuario)));
+
+  app.post('/api/ongs/:id/aprovar', responder((req) => usuarios.avaliarOng(req.usuario, req.params.id, 'aprovada')));
+
+  app.post('/api/ongs/:id/recusar', responder((req) => usuarios.avaliarOng(req.usuario, req.params.id, 'recusada')));
 
   app.get('/api/doacoes', responder((req) => doacoes.listarDisponiveis(req.usuario)));
 

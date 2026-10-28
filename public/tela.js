@@ -1,7 +1,16 @@
 const $ = (id) => document.getElementById(id);
 
-const TELAS = ['tela-carregando', 'tela-entrar', 'tela-doador', 'tela-ong'];
+const TELAS = ['tela-carregando', 'tela-entrar', 'tela-doador', 'tela-ong', 'tela-coordenacao'];
 const reduzirAnimacoes = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+const PAPEL_NA_TELA = { doador: 'Doador', ong: 'ONG', coordenacao: 'Coordenação' };
+
+const NOME_NO_CADASTRO = {
+  doador: ['Nome do estabelecimento', 'Ex.: Padaria do Seu Paulo'],
+  ong: ['Nome da ONG', 'Ex.: Banco de Alimentos']
+};
+
+let usuarioAtual;
 
 function mostrarTela(id) {
   for (const tela of TELAS) $(tela).hidden = tela !== id;
@@ -34,7 +43,10 @@ function mostrarErro(formulario, texto) {
 }
 
 function focarPrimeiroVazio(formulario) {
-  const campos = [...formulario.querySelectorAll('input')];
+  // Fora os botões de escolha e os campos escondidos, como a cidade no cadastro
+  // de doador: focar um campo invisível deixaria o teclado sem destino.
+  const campos = [...formulario.querySelectorAll('input')]
+    .filter((campo) => campo.type !== 'radio' && campo.offsetParent !== null);
   (campos.find((campo) => !campo.value.trim()) ?? campos[0]).focus();
 }
 
@@ -82,6 +94,11 @@ function prazoLegivel(validade) {
   return partes ? `${partes[3]}/${partes[2]}` : validade;
 }
 
+function diaLegivel(momento) {
+  const data = new Date(momento);
+  return Number.isNaN(data.getTime()) ? '' : data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+}
+
 function elemento(tag, classe, texto) {
   const el = document.createElement(tag);
   if (classe) el.className = classe;
@@ -94,8 +111,27 @@ function alternarCadastro(criandoConta) {
   $('form-criar').hidden = !criandoConta;
 }
 
+function papelEscolhido() {
+  return document.querySelector('input[name="papel"]:checked').value;
+}
+
+// A ONG informa a cidade, porque é a coordenação dela que aprova a conta
+// (ADR 0006). O doador não informa: campo a mais no cadastro dele é doador a
+// menos (CONF-01).
+function ajustarCadastro() {
+  const ehOng = papelEscolhido() === 'ong';
+  const [rotulo, exemplo] = NOME_NO_CADASTRO[ehOng ? 'ong' : 'doador'];
+  $('rotulo-nome').textContent = rotulo;
+  $('criar-nome').placeholder = exemplo;
+  $('campo-cidade').hidden = !ehOng;
+  $('dica-ong').hidden = !ehOng;
+}
+
 function mostrarEntrada(mensagem = '') {
+  usuarioAtual = undefined;
   $('conta').hidden = true;
+  $('form-criar').reset();
+  ajustarCadastro();
   alternarCadastro(false);
   mostrarTela('tela-entrar');
   mostrarErro($('form-entrar'), mensagem);
@@ -105,11 +141,29 @@ function sessaoEncerrada() {
   mostrarEntrada('sua sessão terminou. Entre de novo');
 }
 
+function avisoDaConta({ situacao, cidade }) {
+  if (situacao === 'pendente') {
+    return `Sua conta aguarda a aprovação da coordenação de ${cidade}. Você já vê as doações; o aceite libera depois da aprovação.`;
+  }
+  if (situacao === 'recusada') {
+    return `A coordenação de ${cidade} não aprovou esta conta. Fale com ela para entender o motivo.`;
+  }
+  return '';
+}
+
 function entrouComo(usuario) {
+  usuarioAtual = usuario;
   $('conta-nome').textContent = usuario.nome;
-  $('conta-papel').textContent = usuario.papel === 'ong' ? 'ONG' : 'Doador';
+  $('conta-papel').textContent = PAPEL_NA_TELA[usuario.papel];
   $('conta').hidden = false;
-  if (usuario.papel === 'ong') {
+
+  if (usuario.papel === 'coordenacao') {
+    mostrarTela('tela-coordenacao');
+    carregarPedidos();
+  } else if (usuario.papel === 'ong') {
+    const aviso = avisoDaConta(usuario);
+    $('situacao-da-conta').textContent = aviso;
+    $('situacao-da-conta').hidden = !aviso;
     mostrarTela('tela-ong');
     carregarDoacoes();
   } else {
@@ -138,13 +192,24 @@ $('form-criar').addEventListener('submit', (evento) => {
   enviar(formulario, 'Criando conta…', async () => {
     const { ok, dados } = await chamarApi('/api/cadastro', {
       metodo: 'POST',
-      corpo: { nome: $('criar-nome').value, email: $('criar-email').value, senha: $('criar-senha').value }
+      corpo: {
+        nome: $('criar-nome').value,
+        email: $('criar-email').value,
+        senha: $('criar-senha').value,
+        papel: papelEscolhido(),
+        cidade: $('criar-cidade').value
+      }
     });
     if (!ok) return dados.erro;
     formulario.reset();
+    ajustarCadastro();
     entrouComo(dados);
   });
 });
+
+for (const opcao of document.querySelectorAll('input[name="papel"]')) {
+  opcao.addEventListener('change', ajustarCadastro);
+}
 
 $('ir-para-cadastro').addEventListener('click', () => {
   alternarCadastro(true);
@@ -229,13 +294,6 @@ function comandaDaDoacao(doacao, ordem) {
   const prazo = elemento('p', 'comanda-prazo', `Retirar até ${prazoLegivel(doacao.validade)}`);
   prazo.append(elemento('span', 'comanda-numero', `nº ${doacao.id}`));
 
-  const botao = elemento('button', 'botao botao-cheio', 'Aceitar doação');
-  botao.type = 'button';
-  botao.addEventListener('click', () => aceitarDoacao(doacao, comanda, botao));
-
-  const rodape = elemento('div', 'comanda-rodape');
-  rodape.append(botao);
-
   const carimbo = elemento('span', 'carimbo', 'Aceita');
   carimbo.setAttribute('aria-hidden', 'true');
 
@@ -243,10 +301,22 @@ function comandaDaDoacao(doacao, ordem) {
     prazo,
     elemento('h2', 'comanda-tipo', doacao.tipo),
     elemento('p', 'comanda-quantidade', doacao.quantidade),
-    elemento('p', 'comanda-origem', doacao.doador ?? 'Doador sem cadastro'),
-    rodape,
-    carimbo
+    elemento('p', 'comanda-origem', doacao.doador ?? 'Doador sem cadastro')
   );
+
+  // Conta de ONG ainda não aprovada vê a doação, mas não ganha o botão: a tela
+  // não oferece o que a regra recusa (RN-04, ADR 0006).
+  if (usuarioAtual?.situacao === 'aprovada') {
+    const botao = elemento('button', 'botao botao-cheio', 'Aceitar doação');
+    botao.type = 'button';
+    botao.addEventListener('click', () => aceitarDoacao(doacao, comanda, botao));
+
+    const rodape = elemento('div', 'comanda-rodape');
+    rodape.append(botao);
+    comanda.append(rodape);
+  }
+
+  comanda.append(carimbo);
   return comanda;
 }
 
@@ -279,8 +349,83 @@ async function aceitarDoacao(doacao, comanda, botao) {
 
 $('atualizar').addEventListener('click', carregarDoacoes);
 
+function atualizarContagemDePedidos() {
+  const total = $('pedidos').querySelectorAll('.comanda:not(.avaliada)').length;
+  $('contagem-pedidos').textContent = total === 0
+    ? ''
+    : `${total} ${total === 1 ? 'ONG esperando' : 'ONGs esperando'} sua aprovação.`;
+}
+
+function semPedidos() {
+  const item = elemento('li', 'vazio');
+  item.append(
+    elemento('p', 'vazio-titulo', 'Nenhum pedido esperando.'),
+    elemento('p', null, 'Quando uma ONG da sua cidade criar conta, o pedido aparece aqui.')
+  );
+  return item;
+}
+
+function cartaoDoPedido(pedido, ordem) {
+  const cartao = elemento('li', 'comanda');
+  cartao.style.setProperty('--ordem', ordem);
+
+  const quando = elemento('p', 'comanda-prazo', `Pedido de ${diaLegivel(pedido.criado_em)}`);
+  quando.append(elemento('span', 'comanda-numero', `nº ${pedido.id}`));
+
+  const aprovar = elemento('button', 'botao botao-cheio', 'Aprovar');
+  aprovar.type = 'button';
+  const recusar = elemento('button', 'botao botao-contorno', 'Recusar');
+  recusar.type = 'button';
+
+  const rodape = elemento('div', 'comanda-rodape duas-acoes');
+  rodape.append(aprovar, recusar);
+  for (const [acao, botao] of [['aprovar', aprovar], ['recusar', recusar]]) {
+    botao.addEventListener('click', () => avaliarPedido(pedido, acao, cartao, [aprovar, recusar]));
+  }
+
+  cartao.append(
+    quando,
+    elemento('h2', 'comanda-tipo', pedido.nome),
+    elemento('p', 'comanda-quantidade', pedido.email),
+    elemento('p', 'comanda-origem', pedido.cidade),
+    rodape
+  );
+  return cartao;
+}
+
+async function carregarPedidos() {
+  const { ok, status, dados } = await chamarApi('/api/ongs/pendentes');
+  if (status === 401) return sessaoEncerrada();
+  if (!ok) return avisar(dados.erro, 'erro');
+  $('pedidos').replaceChildren(...(dados.length ? dados.map(cartaoDoPedido) : [semPedidos()]));
+  atualizarContagemDePedidos();
+}
+
+async function avaliarPedido(pedido, acao, cartao, botoes) {
+  for (const botao of botoes) botao.disabled = true;
+  const { ok, status, dados } = await chamarApi(`/api/ongs/${pedido.id}/${acao}`, { metodo: 'POST' });
+  if (status === 401) return sessaoEncerrada();
+  if (!ok) {
+    avisar(dados.erro, 'erro');
+    return carregarPedidos();
+  }
+  cartao.classList.add('avaliada');
+  atualizarContagemDePedidos();
+  avisar(acao === 'aprovar'
+    ? `${pedido.nome} já pode aceitar doações`
+    : `${pedido.nome} continua sem poder aceitar doações`);
+  setTimeout(() => {
+    cartao.remove();
+    if (!$('pedidos').querySelector('.comanda')) $('pedidos').replaceChildren(semPedidos());
+  }, reduzirAnimacoes.matches ? 0 : 900);
+}
+
+$('atualizar-pedidos').addEventListener('click', carregarPedidos);
+
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && !$('tela-ong').hidden) carregarDoacoes();
+  if (document.visibilityState !== 'visible') return;
+  if (!$('tela-ong').hidden) carregarDoacoes();
+  if (!$('tela-coordenacao').hidden) carregarPedidos();
 });
 
 async function iniciar() {
