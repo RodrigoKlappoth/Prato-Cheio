@@ -140,8 +140,21 @@ function mostrarCidadesDoEstado() {
 }
 
 async function carregarLocalidades() {
-  const { ok, dados } = await chamarApi('/api/localidades');
-  if (!ok || !Array.isArray(dados)) return;
+  const { ok, status, dados } = await chamarApi('/api/localidades');
+
+  // Falhar calado aqui deixa dois boxes vazios e ninguém sabendo por quê — é o
+  // mesmo tipo de erro invisível que o ADR 0009 existe para eliminar.
+  if (!ok || !Array.isArray(dados) || dados.length === 0) {
+    console.error('Prato Cheio: /api/localidades não respondeu a lista de cidades.', { status, dados });
+    mostrarErro(
+      $('form-criar'),
+      status === 404
+        ? 'esta versão do servidor não conhece a lista de cidades. Reinicie o servidor e recarregue a página'
+        : 'não foi possível carregar a lista de cidades. Recarregue a página'
+    );
+    return;
+  }
+
   localidadesDaRede = dados;
   $('criar-estado').replaceChildren(...dados.map((uf) => opcao(uf.sigla, `${uf.sigla} — ${uf.nome}`)));
   mostrarCidadesDoEstado();
