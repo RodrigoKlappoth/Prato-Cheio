@@ -4,11 +4,23 @@ import { exigirLogin, exigirPapel, exigirOngAprovada } from './usuarios.js';
 
 const CAMPOS_OBRIGATORIOS = ['tipo', 'quantidade', 'validade'];
 
+// Toda conta tem estado e cidade obrigatórios desde o ADR 0009, e a conta
+// editável não afrouxou isso (RN-07). A conferência existe porque uma conta sem
+// cidade seguiria calada: a ONG veria doação de outra cidade e a doação nasceria
+// sem lugar nenhum.
+function exigirLocalidade(usuario) {
+  if (!usuario.estado || !usuario.cidade) {
+    throw falha('sua conta está sem cidade registrada. Fale com a coordenação');
+  }
+  return usuario;
+}
+
 // Todas as funções recebem o "agora" como parâmetro, com o relógio do servidor
 // como valor padrão (decisão D1, ADR 0007). É o que deixa a RN-03 testável sem
 // que o teste dependa do dia em que ele roda.
 export async function criarDoacao(usuario, dados = {}, agora = new Date()) {
   exigirPapel(usuario, 'doador', 'só doadores publicam doações');
+  exigirLocalidade(usuario);
 
   const doacao = {
     tipo: texto(dados.tipo),
@@ -24,20 +36,22 @@ export async function criarDoacao(usuario, dados = {}, agora = new Date()) {
     throw falha('prazo de retirada já vencido');
   }
 
-  return repo.inserir({ ...doacao, doadorId: usuario.id });
+  // A doação nasce com a localidade de quem publicou, copiada agora (ADR 0011).
+  // A cópia é o que mantém a doação na cidade em que a comida está, mesmo que o
+  // doador corrija a cidade da conta depois (RN-07).
+  return repo.inserir({
+    ...doacao,
+    doadorId: usuario.id,
+    estado: usuario.estado,
+    cidade: usuario.cidade
+  });
 }
 
 // A ONG vê as doações da cidade dela, e nada mais (RN-06, ADR 0009): voluntário
 // não atravessa o estado para buscar 10 porções de sopa.
 export async function listarDisponiveis(usuario, agora = new Date()) {
   exigirLogin(usuario);
-
-  // Sem localidade não existe lista. Devolver tudo seria mostrar a uma ONG as
-  // doações de outras cidades, e é o tipo de erro que passa calado — toda conta
-  // tem estado e cidade obrigatórios desde o ADR 0009.
-  if (!usuario.estado || !usuario.cidade) {
-    throw falha('sua conta está sem cidade registrada. Fale com a coordenação');
-  }
+  exigirLocalidade(usuario);
 
   return repo.listarDisponiveis(hojeNaRede(agora), { estado: usuario.estado, cidade: usuario.cidade });
 }
@@ -55,11 +69,11 @@ export async function aceitar(usuario, id, agora = new Date()) {
   exigirOngAprovada(usuario);
   const doacaoId = identificador(id, 'doação');
 
-  // A cidade é conferida antes da escrita, e não dentro dela, porque cidade não
-  // muda: não há corrida a proteger aqui. A corrida que importa é a de duas
-  // ONGs aceitando ao mesmo tempo, e quem resolve essa continua sendo a única
-  // instrução condicional abaixo (RN-02).
-  const ondeEsta = await repo.buscarLocalidadeDoDoador(doacaoId);
+  // A cidade é conferida antes da escrita, e não dentro dela, porque a cidade da
+  // doação não muda depois de publicada (ADR 0011): não há corrida a proteger
+  // aqui. A corrida que importa é a de duas ONGs aceitando ao mesmo tempo, e
+  // quem resolve essa continua sendo a única instrução condicional abaixo (RN-02).
+  const ondeEsta = await repo.buscarPorId(doacaoId);
   if (!ondeEsta) {
     throw falha('doação não encontrada');
   }

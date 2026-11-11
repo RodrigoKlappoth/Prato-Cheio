@@ -1,6 +1,15 @@
 const $ = (id) => document.getElementById(id);
 
-const TELAS = ['tela-carregando', 'tela-entrar', 'tela-doador', 'tela-ong', 'tela-coordenacao'];
+const TELAS = [
+  'tela-carregando',
+  'tela-entrar',
+  'tela-doador',
+  'tela-ong',
+  'tela-coordenacao',
+  'tela-minha-conta'
+];
+
+const TELA_DO_PAPEL = { doador: 'tela-doador', ong: 'tela-ong', coordenacao: 'tela-coordenacao' };
 const reduzirAnimacoes = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 const PAPEL_NA_TELA = { doador: 'Doador', ong: 'ONG', coordenacao: 'Coordenação' };
@@ -134,9 +143,11 @@ function opcao(valor, texto) {
 // Estado e cidade são escolhidos numa lista, e não digitados: quando era texto
 // livre, "Joinville" e "Joinvile" eram cidades diferentes para o sistema, e a
 // ONG com um deslize de digitação não via doação nenhuma (ADR 0009).
-function mostrarCidadesDoEstado() {
-  const estado = localidadesDaRede.find((uf) => uf.sigla === $('criar-estado').value);
-  $('criar-cidade').replaceChildren(...(estado ? estado.cidades.map((c) => opcao(c, c)) : []));
+// Os mesmos dois boxes aparecem em dois formulários — criar conta e corrigir a
+// minha conta —, por isso o prefixo do id.
+function mostrarCidadesDoEstado(prefixo) {
+  const estado = localidadesDaRede.find((uf) => uf.sigla === $(`${prefixo}-estado`).value);
+  $(`${prefixo}-cidade`).replaceChildren(...(estado ? estado.cidades.map((c) => opcao(c, c)) : []));
 }
 
 async function carregarLocalidades() {
@@ -156,8 +167,10 @@ async function carregarLocalidades() {
   }
 
   localidadesDaRede = dados;
-  $('criar-estado').replaceChildren(...dados.map((uf) => opcao(uf.sigla, `${uf.sigla} — ${uf.nome}`)));
-  mostrarCidadesDoEstado();
+  for (const prefixo of ['criar', 'minha']) {
+    $(`${prefixo}-estado`).replaceChildren(...dados.map((uf) => opcao(uf.sigla, `${uf.sigla} — ${uf.nome}`)));
+    mostrarCidadesDoEstado(prefixo);
+  }
 }
 
 function mostrarEntrada(mensagem = '') {
@@ -247,7 +260,9 @@ for (const escolha of document.querySelectorAll('input[name="papel"]')) {
   escolha.addEventListener('change', ajustarCadastro);
 }
 
-$('criar-estado').addEventListener('change', mostrarCidadesDoEstado);
+$('criar-estado').addEventListener('change', () => mostrarCidadesDoEstado('criar'));
+
+$('minha-estado').addEventListener('change', () => mostrarCidadesDoEstado('minha'));
 
 $('ir-para-cadastro').addEventListener('click', () => {
   alternarCadastro(true);
@@ -262,6 +277,48 @@ $('ir-para-entrada').addEventListener('click', () => {
 $('sair').addEventListener('click', async () => {
   await chamarApi('/api/logout', { metodo: 'POST' });
   mostrarEntrada();
+});
+
+// Corrigir a conta é a saída de quem escolheu a cidade errada no cadastro
+// (H-09). Os dois boxes já vêm preenchidos com o que está gravado, para a
+// correção ser uma escolha e não um preenchimento do zero.
+function abrirMinhaConta() {
+  const formulario = $('form-minha-conta');
+  mostrarErro(formulario, '');
+  $('rotulo-minha-nome').textContent = usuarioAtual.papel === 'ong' ? 'Nome da ONG' : 'Nome';
+  $('minha-nome').value = usuarioAtual.nome;
+  $('minha-estado').value = usuarioAtual.estado;
+  mostrarCidadesDoEstado('minha');
+  $('minha-cidade').value = usuarioAtual.cidade;
+  $('dica-minha-cidade').hidden = usuarioAtual.papel === 'coordenacao';
+  mostrarTela('tela-minha-conta');
+  $('minha-nome').focus();
+}
+
+$('ir-para-minha-conta').addEventListener('click', abrirMinhaConta);
+
+$('voltar-da-minha-conta').addEventListener('click', () => {
+  mostrarTela(TELA_DO_PAPEL[usuarioAtual.papel]);
+});
+
+$('form-minha-conta').addEventListener('submit', (evento) => {
+  evento.preventDefault();
+  enviar(evento.currentTarget, 'Salvando…', async () => {
+    const { ok, status, dados } = await chamarApi('/api/eu', {
+      metodo: 'PATCH',
+      corpo: {
+        nome: $('minha-nome').value,
+        estado: $('minha-estado').value,
+        cidade: $('minha-cidade').value
+      }
+    });
+    if (status === 401) return sessaoEncerrada();
+    if (!ok) return dados.erro;
+    avisar('conta atualizada');
+    // Volta pela mesma porta da entrada: a cidade pode ter mudado, e com ela as
+    // listas da tela.
+    entrouComo(dados);
+  });
 });
 
 for (const alternador of document.querySelectorAll('[data-mostrar-senha]')) {

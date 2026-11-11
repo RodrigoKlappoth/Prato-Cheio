@@ -61,10 +61,18 @@ model Sessao {
 }
 
 model Doacao {
-  id            Int            @id @default(autoincrement())
-  tipo          String
-  quantidade    String
-  validade      String
+  id         Int    @id @default(autoincrement())
+  tipo       String
+  quantidade String
+  validade   String
+
+  // Onde a comida está. É cópia da localidade de quem publicou, feita no
+  // instante da publicação, e não a localidade atual da conta: desde que a
+  // conta pode mudar de cidade (ADR 0011), ler a cidade pela relação faria uma
+  // doação antiga trocar de cidade junto com o doador.
+  estado String
+  cidade String
+
   status        StatusDaDoacao @default(disponivel)
   ong           String?
   criada_em     DateTime       @default(now())
