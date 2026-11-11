@@ -1,21 +1,25 @@
 import { banco } from './db.js';
 
-export async function inserir({ tipo, quantidade, validade, doadorId }) {
-  return banco().doacao.create({ data: { tipo, quantidade, validade, doador_id: doadorId } });
+export async function inserir({ tipo, quantidade, validade, doadorId, estado, cidade }) {
+  return banco().doacao.create({
+    data: { tipo, quantidade, validade, doador_id: doadorId, estado, cidade }
+  });
 }
 
 // A validade é texto no formato AAAA-MM-DD, e por isso comparar como texto dá a
 // mesma ordem que comparar como data: '2026-10-09' < '2026-10-10' (ADR 0007).
 //
-// A doação não guarda cidade: ela herda a de quem publicou, pela relação
-// publicada_por (RN-06, ADR 0009). Guardar uma cópia na doação só faria
-// diferença se a conta pudesse mudar de cidade, o que o sistema não permite.
+// A localidade filtrada é a da própria doação, copiada da conta do doador na
+// publicação (ADR 0011). Era a da conta, pela relação publicada_por: a conta
+// passou a poder mudar de cidade (H-09), e ler pela relação moveria para a
+// outra cidade a doação já publicada — e, no histórico, a já retirada.
 export async function listarDisponiveis(hoje, { estado, cidade }) {
   const doacoes = await banco().doacao.findMany({
     where: {
       status: 'disponivel',
       validade: { gte: hoje },
-      publicada_por: { estado, cidade }
+      estado,
+      cidade
     },
     orderBy: { id: 'asc' },
     include: { publicada_por: { select: { nome: true } } }
@@ -49,15 +53,20 @@ export async function buscarPorId(id) {
   return banco().doacao.findUnique({ where: { id } });
 }
 
-// Onde a doação está é onde quem publicou está (RN-06). Fica numa função só
-// para isso, em vez de um include no buscarPorId, para o formato da resposta da
-// API não ganhar um campo de dentro do banco.
-export async function buscarLocalidadeDoDoador(id) {
-  const doacao = await banco().doacao.findUnique({
-    where: { id },
-    select: { publicada_por: { select: { estado: true, cidade: true } } }
+// Doação que a conta ainda está segurando: o doador publicou e ninguém retirou;
+// a ONG aceitou e ainda não confirmou a retirada. É o que impede a conta de
+// mudar de cidade no meio do caminho (RN-07, ADR 0011).
+export async function contarEmCirculacaoDoDoador(doadorId, hoje) {
+  return banco().doacao.count({
+    where: {
+      doador_id: doadorId,
+      OR: [{ status: 'disponivel', validade: { gte: hoje } }, { status: 'aceita' }]
+    }
   });
-  return doacao?.publicada_por;
+}
+
+export async function contarAceitesEmAbertoDaOng(ongId) {
+  return banco().doacao.count({ where: { ong_id: ongId, status: 'aceita' } });
 }
 
 export async function aceitar(id, ong, hoje, agora) {
@@ -94,6 +103,12 @@ export async function buscarUsuarioPorEmail(email) {
 
 export async function buscarUsuarioPorId(id) {
   return banco().usuario.findUnique({ where: { id } });
+}
+
+// Atualiza só o que a pessoa pode corrigir na própria conta (RN-07, ADR 0011):
+// e-mail, senha, papel e situação não entram nesta instrução.
+export async function atualizarConta({ id, nome, estado, cidade }) {
+  return banco().usuario.update({ where: { id }, data: { nome, estado, cidade } });
 }
 
 export async function listarOngsPorSituacao(situacao) {

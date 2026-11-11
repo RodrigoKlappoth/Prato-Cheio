@@ -76,7 +76,7 @@ Os porquês estão nos ADRs [0005](docs/adr/0005-postgresql-no-lugar-do-sqlite.m
 src/server.js          entrypoint (npm start)
 src/app.js             página inicial, rotas da API e cookie da sessão
 src/doacoes.js         regras das doações: publicar, listar, aceitar, retirar e cancelar (RN-01 a RN-05)
-src/usuarios.js        regras de conta: cadastro, login, sessão, papéis e aprovação da ONG (H-04 a H-06)
+src/usuarios.js        regras de conta: cadastro, login, sessão, papéis, aprovação da ONG e correção da própria conta (H-04 a H-06, H-09)
 src/regras.js          peças comuns: erro com status, id válido, campos obrigatórios e o dia de hoje em São Paulo
 src/localidades.js     onde a rede atende: estados e cidades (RN-06)
 src/repositorio.js     acesso ao banco (Prisma Client)
@@ -118,6 +118,38 @@ peça a revisão de **outro integrante**. Só então faça o merge.
 
 Mudou o banco? A pasta nova em `prisma/migrations/` entra no mesmo Pull Request, e depois do merge alguém roda `npm run db:migrar` para aplicar a mudança no Neon.
 
+## Definição de pronto
+
+Nosso acordo sobre o que "pronto" significa. Vale para cada história, e é a lista que o revisor confere antes do merge. Ela não tem meio-termo: se falta uma linha, a história **não está pronta** — fica no Pull Request, e não na `main`.
+
+Ela nasceu das três coisas que mais nos custaram caro até agora: regra combinada e não escrita (a RN-03 ficou uma unidade inteira sem código), critério de aceite sem teste com nome, e dívida percebida e não registrada.
+
+**A história funciona**
+
+1. O que a história promete acontece **pela tela**, de ponta a ponta, entrando com o papel de quem vai usar — e não só pela API.
+2. **Cada critério de aceite tem um teste automatizado**, e o nome desse teste está escrito ao lado do critério em [`docs/analise.md`](docs/analise.md). Critério sem teste com nome não conta.
+3. **O teste novo tem dente:** antes de aceitá-lo, desligamos a regra que ele cobre e vimos o teste falhar. Teste que passa com a regra desligada não está testando nada.
+4. **A recusa é parte da história:** o que a regra proíbe tem teste, com o status certo — `400` para regra de negócio, `401` sem login, `403` para papel, conta ou cidade sem permissão — e a mensagem diz à pessoa o que fazer.
+
+**O código entra pelo caminho combinado**
+
+5. `npm test` passa **inteiro** na máquina de quem escreveu, e não só o arquivo novo.
+6. Branch, Pull Request com o template preenchido, **CI verde** e **revisão do outro integrante**. Nada entra direto na `main`.
+7. Mudou o modelo? A pasta da migration está **no mesmo Pull Request**, e o PR diz como aplicá-la.
+8. Os comentários no código explicam **por que**, não o que; não sobrou código morto, `console.log` de depuração nem trecho comentado "para depois".
+
+**O que decidimos fica registrado**
+
+9. Decisão que tinha alternativa virou **ADR**, com as alternativas e o que abrimos mão. Se ela substitui uma decisão anterior, o ADR antigo é revisado dizendo **qual premissa caiu** — a decisão velha não é apagada.
+10. O **README está atualizado**: o que ficou pronto, o que saiu do backlog e o que entrou nele.
+11. **Dívida que descobrimos e não pagamos está escrita** — no backlog daqui ou nas consequências do ADR. Dívida lembrada de cabeça não existe.
+12. **Uso de IA registrado no Pull Request:** o que ela gerou, o que mantivemos, o que mudamos e por quê.
+
+**Está no ar**
+
+13. Depois do merge, a versão publicada na Vercel sobe e `/api/saude` responde.
+14. A migration foi aplicada no Neon (`npm run db:migrar`) e `npx prisma migrate status` não mostra nada pendente.
+
 ## O que já está pronto e o que falta
 
 **Pronto no Trabalho 1 (walking skeleton):** a história zero funciona ponta a ponta —
@@ -136,6 +168,10 @@ Mudou o banco? A pasta nova em `prisma/migrations/` entra no mesmo Pull Request,
 - **Dez ADRs em `docs/adr/`.** O [0005](docs/adr/0005-postgresql-no-lugar-do-sqlite.md) registra por que trocamos o SQLite pelo PostgreSQL e foi **revisado nesta entrega** com as evidências de três mudanças de modelo feitas depois da migração. O [0006](docs/adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md) revisa o [0003](docs/adr/0003-identificacao-por-email-e-senha.md) e agora está implementado. São quatro novos: [0007](docs/adr/0007-agora-como-parametro-e-dia-de-sao-paulo.md) e [0008](docs/adr/0008-retirada-confirmada-e-cancelamento-do-aceite.md) fecham as decisões D1 e D2; [0009](docs/adr/0009-estado-e-cidade-escolhidos-em-lista.md) põe estado e cidade em toda conta; e [0010](docs/adr/0010-aprovacao-central-da-conta-de-ong.md) **substitui uma regra do 0006 no mesmo dia em que a implementamos** — a aprovação deixou de ser por cidade, porque a rede tem uma coordenação só e o pedido de uma cidade sem coordenador ficava esperando ninguém.
 - **Documento da entrega** em [`docs/projeto.md`](docs/projeto.md): histórias implementadas, decisões, os três requisitos não funcionais e os critérios de validação. A retrospectiva está em [`docs/retrospectivas/2.md`](docs/retrospectivas/2.md), e a v3 do diagrama de estados, em [`docs/diagramas/`](docs/diagramas/README.md).
 
+**Pronto na Unidade 3:**
+- **A conta é editável, e a doação guarda a cidade em que foi publicada** (H-09, RN-07, [ADR 0011](docs/adr/0011-conta-editavel-e-cidade-na-doacao.md)). Quem escolheu a cidade errada no cadastro corrige na própria tela, em **Conta**: era a primeira dívida registrada do [ADR 0009](docs/adr/0009-estado-e-cidade-escolhidos-em-lista.md), e até aqui a saída era criar outra conta ou alguém corrigir no banco. E-mail, senha, papel e situação **não** mudam por aí, e a cidade não muda com doação em circulação. A história derrubou uma premissa do ADR 0009: a doação **herdava** a cidade pela conta de quem publicou, e com a conta editável isso faria a doação da semana passada trocar de cidade hoje — agora ela guarda `estado` e `cidade` próprios, copiados no instante da publicação.
+- **Definição de pronto do grupo**, [acima](#definição-de-pronto), escrita a partir do que nos custou caro nas duas primeiras unidades.
+
 A fatia atravessa todas as camadas de propósito — é isso que faz dela um *walking skeleton*:
 
 | Passo da história | Tela (`public/`) | Rota (`src/app.js`) | Regra | Banco (`src/repositorio.js`) |
@@ -147,9 +183,10 @@ A fatia atravessa todas as camadas de propósito — é isso que faz dela um *wa
 | ONG cria a conta | escolha **Sou ONG** + estado e cidade | `POST /api/cadastro`, `GET /api/localidades` | `cadastrarPeloSite` — conta de ONG nasce pendente (RN-04) e a localidade é validada contra a lista (RN-06) | `inserirUsuario` — grava estado, cidade e situação |
 | Coordenação aprova | tela **Pedidos de conta** | `GET /api/ongs/pendentes`, `POST /api/ongs/:id/aprovar` e `/recusar` | `listarOngsPendentes` e `avaliarOng` — só a coordenação, de qualquer cidade da rede | `listarOngsPorSituacao` e `avaliarConta` — grava quem decidiu e quando |
 | ONG retira ou devolve | botões **Confirmar retirada** e **Cancelar aceite** | `POST /api/doacoes/:id/retirar` e `/cancelar` | `confirmarRetirada` e `cancelarAceite` — só a ONG que aceitou (RN-05) | `registrarRetirada` grava `retirada_em`; `devolverParaDisponivel` apaga o aceite |
+| Cada um corrige a própria conta | tela **Minha conta** | `PATCH /api/eu` | `editarConta` — muda nome, estado e cidade; confere a cidade na lista e barra a troca com doação em circulação (RN-07) | `atualizarConta` — grava só esses três campos |
 | Cada um vê o que já passou | listas **Suas doações recentes** e **Suas doações aceitas** | `GET /api/doacoes/recentes` | `listarRecentes` — o doador vê o que publicou, a ONG o que aceitou | `listarPublicadasPor` e `listarAceitasPor` |
 
-Cada critério de aceite em `docs/analise.md` aponta para um teste com nome. São **66 testes**, todos passando: 8 em `tests/doacoes.test.js`, 12 em `tests/contas.test.js`, 13 em `tests/aprovacao.test.js`, 7 em `tests/prazo.test.js`, 14 em `tests/historico.test.js`, 9 em `tests/localidade.test.js` e 3 em `tests/deploy.test.js`, que conferem o que a Vercel exige. **29 deles verificam que o sistema recusa algo:** erro de regra vira `400`, falta de login vira `401` e papel, conta ou cidade sem permissão vira `403`.
+Cada critério de aceite em `docs/analise.md` aponta para um teste com nome. São **84 testes**, todos passando: 8 em `tests/doacoes.test.js`, 12 em `tests/contas.test.js`, 13 em `tests/aprovacao.test.js`, 7 em `tests/prazo.test.js`, 14 em `tests/historico.test.js`, 9 em `tests/localidade.test.js`, 18 em `tests/conta.test.js` e 3 em `tests/deploy.test.js`, que conferem o que a Vercel exige. **36 deles verificam que o sistema recusa algo:** erro de regra vira `400`, falta de login vira `401` e papel, conta ou cidade sem permissão vira `403`.
 
 **Falta (backlog):**
 - Trocar a região da função da Vercel para São Paulo (`gru1`), a mesma do banco. Hoje ela roda em Washington (`iad1`) ([ADR 0002](docs/adr/0002-hospedagem-na-vercel.md)).
@@ -158,7 +195,8 @@ Cada critério de aceite em `docs/analise.md` aponta para um teste com nome. Sã
 - **Executar o experimento H1** com 8 doadores reais. O requisito de publicar em 30 segundos ainda é uma suposição ([`docs/experimento-h1.md`](docs/experimento-h1.md)).
 - **Teste automatizado da tela.** Os 66 testes cobrem regras e rotas; `public/tela.js` é conferido à mão.
 - Recuperação de senha e limite de tentativas de login ([ADR 0003](docs/adr/0003-identificacao-por-email-e-senha.md)). Os dois são pré-requisitos para a rede atender outras cidades ([ADR 0006](docs/adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md)).
-- **Editar a conta, principalmente a cidade.** Quem escolher a cidade errada no cadastro fica preso: hoje a saída é criar outra conta, ou alguém corrigir no banco. É a primeira dívida do [ADR 0009](docs/adr/0009-estado-e-cidade-escolhidos-em-lista.md).
+- **Trocar o e-mail e a senha da conta.** A correção de conta (H-09) mexe em nome, estado e cidade; os dois outros campos continuam fora, e a senha depende da recuperação por e-mail acima ([ADR 0011](docs/adr/0011-conta-editavel-e-cidade-na-doacao.md)).
+- **Guardar a mudança de cidade da conta, com data.** Hoje a correção não deixa rastro: depois dela, ninguém sabe que a conta era de outra cidade — e, no caso da ONG, a coordenação aprovou uma conta que dizia ser de outro lugar. É a dívida que o [ADR 0011](docs/adr/0011-conta-editavel-e-cidade-na-doacao.md) registra.
 - **Mais cidades em `src/localidades.js`.** A lista tem 61 das 295 cidades de SC, e crescer depende de um PR nosso.
 - **Aprovação por cidade de volta**, quando a rede tiver pessoa de coordenação em mais de uma cidade ([ADR 0010](docs/adr/0010-aprovacao-central-da-conta-de-ong.md)).
 

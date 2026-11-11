@@ -95,7 +95,8 @@ Regras que ninguém enuncia — estão no hábito de quem opera. Aqui viram fras
 | RN-03 | "Se passou do horário, aquilo não presta mais" | Doação cujo **prazo de retirada já passou não aparece na lista de disponíveis e não pode ser aceita**. A tentativa de aceite é recusada com o motivo "prazo de retirada vencido". O limite é o dia de hoje em São Paulo, inclusive: o que vence hoje ainda circula. Publicar com prazo no passado também é recusado. | `tests/prazo.test.js` → "CA-03.1 — não mostra na lista a doação com prazo de ontem", "CA-03.2 — recusa o aceite de uma doação com o prazo vencido" e os dois testes do CA-03.3 | Implementada na U2 ([ADR 0007](adr/0007-agora-como-parametro-e-dia-de-sao-paulo.md)) |
 | RN-05 | "Se a ONG desistir, ela avisa no grupo e o doador publica de novo" | **Só a ONG que aceitou** confirma a retirada ou cancela o aceite. O cancelamento devolve a doação para `disponivel` e apaga o aceite; a retirada confirmada é o fim da linha e não pode ser desfeita. | `tests/historico.test.js` → "devolve a doação para a lista das outras ONGs, sem rastro do aceite", "recusa cancelar o aceite de outra ONG" e "recusa cancelar depois de a retirada estar confirmada" | Implementada na U2 ([ADR 0008](adr/0008-retirada-confirmada-e-cancelamento-do-aceite.md)) |
 | RN-04 | "Essas ONGs aí eu conheço" | Só **ONG com conta aprovada pela coordenação** aceita doações. ONG com conta pendente ou recusada entra e vê a lista, mas o aceite é recusado com o motivo, e a doação continua *disponivel*. Qualquer conta de coordenação aprova ONG de qualquer cidade da rede. | `tests/aprovacao.test.js` → "deixa a ONG pendente ver a lista, mas recusa o aceite dela", "recusa o aceite da ONG que a coordenação recusou" e "aprova uma ONG de outra cidade, porque a coordenação atende a rede toda" | Implementada na U2 ([ADR 0006](adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md) e [ADR 0010](adr/0010-aprovacao-central-da-conta-de-ong.md)) |
-| RN-06 | "A gente atende aqui no bairro" | **Toda conta tem estado e cidade**, escolhidos numa lista, e a ONG **vê e aceita só as doações da sua cidade**. A doação herda a cidade de quem publicou. Tentar aceitar doação de outra cidade é recusado com o motivo, mesmo com o número da doação em mãos. | `tests/localidade.test.js` → "separa as listas de duas ONGs em cidades diferentes" e "recusa o aceite de doação de outra cidade, mesmo sabendo o número dela" | Implementada na U2 ([ADR 0009](adr/0009-estado-e-cidade-escolhidos-em-lista.md)) |
+| RN-06 | "A gente atende aqui no bairro" | **Toda conta tem estado e cidade**, escolhidos numa lista, e a ONG **vê e aceita só as doações da sua cidade**. A doação fica na cidade em que foi publicada. Tentar aceitar doação de outra cidade é recusado com o motivo, mesmo com o número da doação em mãos. | `tests/localidade.test.js` → "separa as listas de duas ONGs em cidades diferentes" e "recusa o aceite de doação de outra cidade, mesmo sabendo o número dela" | Implementada na U2 ([ADR 0009](adr/0009-estado-e-cidade-escolhidos-em-lista.md)). A doação **herdava** a cidade pela conta de quem publicou; com a conta editável (RN-07) ela passou a guardar a própria cópia ([ADR 0011](adr/0011-conta-editavel-e-cidade-na-doacao.md)) |
+| RN-07 | "Eu errei a cidade quando me cadastrei" | **Cada pessoa corrige o nome, o estado e a cidade da própria conta**, e a cidade nova é conferida contra a mesma lista do cadastro. E-mail, senha, papel e situação não mudam por aí. **A cidade não muda com doação em circulação**: doação do doador ainda disponível e no prazo, ou aceite da ONG ainda sem retirada confirmada, bloqueiam a troca com o motivo. | `tests/conta.test.js` → "CA-09.1 — corrige a cidade escolhida errada no cadastro", "CA-09.5 — ignora e-mail, senha, papel e situação vindos no corpo do pedido" e "CA-09.6 — recusa a mudança de cidade do doador com doação esperando uma ONG" | Implementada na U3 ([ADR 0011](adr/0011-conta-editavel-e-cidade-na-doacao.md)) |
 
 **Contraexemplo do que não vale como regra:** "o sistema deve ser rápido", "tratar os casos especiais". Não têm sujeito, condição nem efeito — ninguém consegue dizer se foram cumpridas.
 
@@ -111,6 +112,7 @@ Regras que ninguém enuncia — estão no hábito de quem opera. Aqui viram fras
 | H-06 *(U2)* | Como **coordenação da minha cidade**, quero ver os pedidos de conta de ONG da minha cidade e aprovar ou recusar cada um, para que só ONGs que eu conheço aceitem doações. | **S**mall é a mais fraca: traz um papel novo, uma tela nova e um estado novo na conta. Não fatiamos porque aprovar sem o cadastro da H-05 não tem o que aprovar. **T**estable é forte: cada decisão fica gravada com quem decidiu e quando. |
 | H-07 *(U2)* | Como **ONG**, quero confirmar a retirada ou cancelar o aceite, e **como doador**, quero ver o que aconteceu com o que publiquei, para que a comida que uma ONG não vai buscar volte para a lista em vez de vencer reservada. | **I**ndependent é fraca: depende de H-01 e H-02 existirem. **V**aluable é a mais forte das três partes juntas, e é por isso que não fatiamos: o cancelamento sozinho resolveria o risco da ONG que não retira, mas sem a confirmação de retirada o OBJ-01 continuaria sem poder ser medido, e sem o histórico ninguém encontraria a doação para cancelar. Nasce da decisão D2 e do [ADR 0008](adr/0008-retirada-confirmada-e-cancelamento-do-aceite.md). |
 | H-08 *(U2)* | Como **ONG**, quero ver só as doações da minha cidade, e **como doador**, quero informar minha cidade ao criar a conta, para que ninguém desloque voluntário para outra cidade atrás de 10 porções de sopa. | **S**mall é boa, mas a história junta duas coisas por necessidade: informar a cidade sem filtrar a lista deixaria um campo obrigatório que não faz nada, e filtrar sem o doador informar a cidade é impossível, porque a doação herda a cidade de quem publicou. **T**estable é forte: duas ONGs em cidades diferentes veem listas diferentes, e isso se escreve num teste. Nasce do [ADR 0009](adr/0009-estado-e-cidade-escolhidos-em-lista.md). |
+| H-09 *(U3)* | Como **doador ou ONG**, quero corrigir o nome e a cidade da minha conta, para não ficar fora da rede por ter escolhido a cidade errada no cadastro. | **I**ndependent e **S**mall são boas: a história é uma rota e um formulário. **V**aluable é maior do que parece — hoje quem erra a cidade não vê doação nenhuma e não tem saída dentro do sistema. A história obrigou uma decisão que a H-08 tinha deixado de pé: se a doação herda a cidade da conta, mudar a conta move a doação de ontem. Daí a cópia da localidade na doação, no [ADR 0011](adr/0011-conta-editavel-e-cidade-na-doacao.md). Era a primeira dívida registrada do [ADR 0009](adr/0009-estado-e-cidade-escolhidos-em-lista.md). |
 
 **Nota de implementação da H-03 (dívida já identificada):** o fixture `SOPA` em `tests/doacoes.test.js` usa `validade: '2026-08-01'` — uma data que **já passou**. No dia em que RN-03 for implementada, os testes hoje verdes de H-01 e H-02 quebram em bloco, porque a doação de teste passa a nascer vencida. A correção vem junto com a história: o prazo passa a ser calculado relativamente (`hoje + 1 dia`) ou o "agora" vira parâmetro das funções de `src/doacoes.js`. Registrar isso agora evita descobrir na véspera da entrega.
 
@@ -420,6 +422,64 @@ Testes em `tests/aprovacao.test.js`.
   **Então** o sistema responde `400` com "conta de ONG não encontrada" nos dois primeiros, `400` com "id de conta inválido" no terceiro e `401` sem login — e nada muda.
   → "recusa aprovar uma conta que não é de ONG", "recusa aprovar uma conta que não existe e um id que não é número" e "recusa aprovar e ver os pedidos sem entrar"
 
+### H-09 — A pessoa corrige a própria conta (RN-07, ADR 0011) — Unidade 3
+
+Testes em `tests/conta.test.js`.
+
+- **CA-09.1 — a cidade errada tem correção dentro do sistema**
+  **Dado** que me cadastrei em Blumenau por engano, sendo de Joinville,
+  **Quando** corrijo o estado e a cidade na minha conta,
+  **Então** o sistema responde `200`, a conta continua sendo a mesma (mesmo id, mesma sessão) e o que eu publico passa a aparecer para as ONGs de Joinville, e não para as de Blumenau.
+  → "CA-09.1 — corrige a cidade escolhida errada no cadastro" e "CA-09.1 — depois da correção, o doador publica para as ONGs da cidade certa"
+
+- **CA-09.2 — o nome também se corrige, e o pedido muda só o que traz**
+  **Dado** que o nome do estabelecimento mudou,
+  **Quando** envio só o nome novo,
+  **Então** o sistema responde `200`, as doações passam a mostrar o nome novo e a cidade continua a mesma — campo que não vem no pedido fica como está.
+  → "CA-09.2 — corrige o nome do estabelecimento, e ele aparece na doação publicada" e "CA-09.2 — muda só o que vem no pedido: corrigir o nome não apaga a cidade"
+
+- **CA-09.3 — a correção passa pela mesma lista do cadastro**
+  **Dado** a cidade `"Joinvile"`, o estado `"SP"` ou um nome em branco,
+  **Quando** tento salvar,
+  **Então** o sistema responde `400` com o motivo e a conta fica como estava.
+  → "CA-09.3 — recusa cidade que não está na lista da rede", "CA-09.3 — recusa estado que a rede não atende" e "CA-09.3 — recusa nome em branco". A regra é a mesma função do cadastro: a lista não pode valer numa porta e não valer na outra.
+
+- **CA-09.4 — ninguém corrige a conta de outra pessoa**
+  **Dado** que não entrei,
+  **Quando** chamo a rota de correção,
+  **Então** o sistema responde `401` e nenhuma conta muda. A rota não recebe id: ela só mexe na conta da sessão.
+  → "CA-09.4 — recusa corrigir conta sem estar logado"
+
+- **CA-09.5 — a correção não é uma porta para o que ela não corrige**
+  **Dado** um pedido que, além da cidade, traz e-mail, senha, papel `coordenacao` e situação `aprovada`,
+  **Quando** ele é enviado por uma ONG pendente,
+  **Então** o sistema responde `200` com a cidade corrigida, e e-mail, papel e situação continuam como estavam — a senha antiga continua entrando, e o pedido segue na fila da coordenação.
+  → "CA-09.5 — ignora e-mail, senha, papel e situação vindos no corpo do pedido" e "CA-09.5 — a conta de ONG pendente corrige a cidade sem virar aprovada". É o critério que mantém a RN-04 de pé: aprovação é decisão da coordenação, não campo de formulário.
+
+- **CA-09.6 — a cidade não muda no meio de uma combinação (doador)**
+  **Dado** que publiquei uma doação que ainda está esperando uma ONG,
+  **Quando** tento mudar de cidade,
+  **Então** o sistema responde `400` dizendo que tenho doação em circulação, e a conta fica como estava. Corrigir só o nome continua liberado.
+  → "CA-09.6 — recusa a mudança de cidade do doador com doação esperando uma ONG" e "CA-09.6 — deixa o doador corrigir o nome mesmo com doação em circulação"
+
+- **CA-09.7 — a cidade não muda no meio de uma combinação (ONG)**
+  **Dado** que aceitei uma doação e ainda não confirmei a retirada,
+  **Quando** tento mudar de cidade,
+  **Então** o sistema responde `400` dizendo que tenho doação aceita e não retirada.
+  → "CA-09.7 — recusa a mudança de cidade da ONG com aceite em aberto"
+
+- **CA-09.8 — fora de circulação, a cidade muda**
+  **Dado** que a retirada foi confirmada — ou que o aceite foi cancelado e o prazo venceu,
+  **Quando** mudo de cidade,
+  **Então** o sistema responde `200`. "Em circulação" é o mesmo que no resto do sistema: disponível e no prazo, ou aceita e não retirada (RN-02, RN-03).
+  → "CA-09.8 — libera a mudança de cidade depois da retirada confirmada" e "CA-09.8 — libera a mudança de cidade depois de a ONG cancelar o aceite e o prazo vencer"
+
+- **CA-09.9 — a doação não muda de cidade junto com a conta**
+  **Dado** uma doação publicada e retirada em Joinville,
+  **Quando** o doador muda a conta para Blumenau e publica outra,
+  **Então** a doação antiga continua registrada em Joinville, no histórico das duas pontas, e só a nova aparece para as ONGs de Blumenau.
+  → "CA-09.9 — a doação já retirada mantém a cidade de origem no histórico" e "CA-09.9 — a doação esperando continua na lista da cidade em que foi publicada". É o critério que prova a cópia da localidade na doação ([ADR 0011](adr/0011-conta-editavel-e-cidade-na-doacao.md)): sem ela, o histórico de ontem mudaria de lugar hoje.
+
 ## Riscos
 
 | Risco | Probabilidade | Impacto | Mitigação |
@@ -474,5 +534,6 @@ O que geramos com IA, o que verificamos e o que alteramos.
 | Histórias H-05 e H-06, regra RN-04, critérios CA-05.1 a CA-06.6 e reescrita do CA-04.2 | Claude Code (Anthropic) | A decisão já estava tomada por nós no ADR 0006; conferimos cada critério contra o nome do teste em `tests/aprovacao.test.js` e verificamos que os 13 testes novos têm dente, desligando a regra do aceite e vendo 3 deles falharem |
 | História H-07, regras RN-03 e RN-05, critérios CA-03.1 a CA-03.5 e CA-07.1 a CA-07.8 | Claude Code (Anthropic) | Escolhemos as alternativas das decisões D1 e D2; medimos a quebra que a nota de implementação da H-03 previa, em vez de escrever o número de memória (23 testes em 4 arquivos); conferimos o fuso de São Paulo com datas reais antes de aceitar a regra |
 | História H-08, regra RN-06, critérios CA-08.1 a CA-08.5 e a reescrita de CA-05.2, CA-06.1 e CA-06.5 | Claude Code (Anthropic) | A mudança partiu de nós, ao usar o sistema: a cidade digitada deixava a rede quebrar com um typo, o doador não tinha cidade e a aprovação por cidade travava pedido de cidade sem coordenador. A IA tinha justificado "doador sem cidade" com o CONF-01, e **nós mandamos conferir**: o CONF-01 trata dos campos da doação, não dos da conta. A premissa errada está registrada no [ADR 0009](adr/0009-estado-e-cidade-escolhidos-em-lista.md) em vez de apagada |
+| História H-09, regra RN-07, critérios CA-09.1 a CA-09.9, o [ADR 0011](adr/0011-conta-editavel-e-cidade-na-doacao.md), o código da correção de conta e a migration da cidade na doação | Claude Code (Anthropic) | A história saiu do nosso backlog: era a primeira dívida que o ADR 0009 registrou. A IA levantou a consequência que não estava escrita em lugar nenhum — com a doação herdando a cidade pela conta, corrigir a cidade moveria a doação de ontem — e propôs as duas regras do ADR 0011; **nós decidimos** manter as duas e não só uma, porque a cópia sozinha deixaria comida esperando numa cidade onde o doador já não está. Conferimos a migration aplicando-a num banco com dados antigos e vendo cada doação receber a cidade do seu próprio doador, e não um valor único |
 
 

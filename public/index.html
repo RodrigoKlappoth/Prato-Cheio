@@ -28,6 +28,7 @@
       <div class="conta" id="conta" hidden>
         <span class="conta-papel" id="conta-papel"></span>
         <span class="conta-nome" id="conta-nome"></span>
+        <button type="button" class="botao-texto" id="ir-para-minha-conta">Conta</button>
         <button type="button" class="botao-texto" id="sair">Sair</button>
       </div>
     </div>
@@ -156,6 +157,31 @@
         <p class="apoio">Confirme a retirada quando buscar, ou cancele o aceite para devolver a doação à lista das outras ONGs.</p>
         <ul class="comandas" id="lista-aceitas"></ul>
       </section>
+    </section>
+
+    <section id="tela-minha-conta" hidden>
+      <h1>Minha conta</h1>
+      <p class="apoio">Errou a cidade no cadastro? Corrija aqui, sem precisar de outra conta.</p>
+
+      <form class="cartao" id="form-minha-conta" novalidate>
+        <label for="minha-nome" id="rotulo-minha-nome">Nome</label>
+        <input id="minha-nome" autocomplete="organization">
+        <div class="campo-dupla">
+          <div class="campo">
+            <label for="minha-estado">Estado</label>
+            <select id="minha-estado"></select>
+          </div>
+          <div class="campo">
+            <label for="minha-cidade">Cidade</label>
+            <select id="minha-cidade"></select>
+          </div>
+        </div>
+        <p class="dica" id="dica-minha-cidade">Você vê e publica as doações da cidade escolhida.</p>
+        <p class="dica">O e-mail e a senha da conta não mudam por aqui.</p>
+        <p class="erro" role="alert" hidden></p>
+        <button type="submit" class="botao botao-cheio">Salvar</button>
+        <button type="button" class="botao-texto trocar" id="voltar-da-minha-conta">Voltar</button>
+      </form>
     </section>
 
     <section id="tela-coordenacao" hidden>

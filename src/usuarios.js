@@ -1,7 +1,7 @@
 import { randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import * as repo from './repositorio.js';
-import { falha, texto, identificador, exigirCampos } from './regras.js';
+import { falha, texto, identificador, exigirCampos, hojeNaRede } from './regras.js';
 import { estadoAtendido, cidadeAtendida } from './localidades.js';
 
 const derivarChave = promisify(scrypt);
@@ -41,16 +41,10 @@ async function abrirSessao(usuario, agora = new Date()) {
   return token;
 }
 
-async function cadastrar(dados, papel, situacao = 'aprovada') {
-  const conta = {
-    nome: texto(dados.nome),
-    email: texto(dados.email).toLowerCase(),
-    senha: senhaDigitada(dados.senha)
-  };
-  exigirCampos(conta, ['nome', 'email', 'senha']);
-
-  // Toda conta tem estado e cidade, inclusive a de doador: é a cidade do doador
-  // que decide para quais ONGs a doação dele aparece (RN-06, ADR 0009).
+// A localidade vem de uma lista curada, e o servidor confere contra ela: o box
+// da tela evita o erro de digitação, mas a tela não é a única porta da API
+// (RN-06, ADR 0009). Vale no cadastro e na correção da conta (RN-07).
+function localidadeDaConta(dados) {
   const estado = texto(dados.estado).toUpperCase();
   const cidade = texto(dados.cidade);
   exigirCampos({ estado, cidade }, ['estado', 'cidade']);
@@ -61,6 +55,20 @@ async function cadastrar(dados, papel, situacao = 'aprovada') {
   if (!cidadeAtendida(estado, cidade)) {
     throw falha(`a rede ainda não atende ${cidade} em ${estado}. Escolha uma cidade da lista`);
   }
+  return { estado, cidade };
+}
+
+async function cadastrar(dados, papel, situacao = 'aprovada') {
+  const conta = {
+    nome: texto(dados.nome),
+    email: texto(dados.email).toLowerCase(),
+    senha: senhaDigitada(dados.senha)
+  };
+  exigirCampos(conta, ['nome', 'email', 'senha']);
+
+  // Toda conta tem estado e cidade, inclusive a de doador: é a cidade do doador
+  // que decide para quais ONGs a doação dele aparece (RN-06, ADR 0009).
+  const { estado, cidade } = localidadeDaConta(dados);
 
   if (!conta.email.includes('@')) {
     throw falha('e-mail inválido');
@@ -102,6 +110,53 @@ export async function cadastrarOng(dados = {}) {
 // Usado pelo npm run coordenacao:criar: é um comando por cidade, e não um por ONG.
 export async function cadastrarCoordenacao(dados = {}) {
   return cadastrar(dados, 'coordenacao');
+}
+
+// Mudar de cidade com doação em circulação deixaria uma combinação pendente
+// entre duas cidades: o doador esperando a ONG da cidade antiga, ou a ONG com
+// uma comida aceita que está noutro lugar. A doação em circulação termina
+// primeiro (RN-07, ADR 0011).
+//
+// "Em circulação" aqui é o mesmo que no resto do sistema: disponível e no prazo,
+// ou aceita e não retirada. Doação com prazo vencido já saiu da lista (RN-03) e
+// não prende ninguém.
+async function exigirNadaEmCirculacao(usuario, agora) {
+  if (usuario.papel === 'doador' && (await repo.contarEmCirculacaoDoDoador(usuario.id, hojeNaRede(agora))) > 0) {
+    throw falha(
+      `você tem doação em circulação em ${usuario.cidade}. Espere a ONG retirar, ou o prazo vencer, antes de mudar de cidade`
+    );
+  }
+  if (usuario.papel === 'ong' && (await repo.contarAceitesEmAbertoDaOng(usuario.id)) > 0) {
+    throw falha(
+      `você tem doação aceita e não retirada em ${usuario.cidade}. Confirme a retirada ou cancele o aceite antes de mudar de cidade`
+    );
+  }
+}
+
+// A saída de quem escolheu a cidade errada no cadastro. Era a primeira dívida do
+// [ADR 0009]: até aqui a conta não tinha como ser corrigida, e quem errava a
+// cidade ficava preso — a saída era criar outra conta, ou alguém corrigir no
+// banco (história H-09, RN-07, ADR 0011).
+//
+// Muda nome, estado e cidade, e nada mais: e-mail e senha são a identificação
+// (ADR 0003), o papel define o que a conta pode fazer e a situação é decisão da
+// coordenação (RN-04). Campo que não vem no pedido fica como está.
+export async function editarConta(usuario, dados = {}, agora = new Date()) {
+  exigirLogin(usuario);
+
+  const nome = dados.nome === undefined ? usuario.nome : texto(dados.nome);
+  exigirCampos({ nome }, ['nome']);
+
+  const { estado, cidade } = localidadeDaConta({
+    estado: dados.estado ?? usuario.estado,
+    cidade: dados.cidade ?? usuario.cidade
+  });
+
+  if (estado !== usuario.estado || cidade !== usuario.cidade) {
+    await exigirNadaEmCirculacao(usuario, agora);
+  }
+
+  return semSenha(await repo.atualizarConta({ id: usuario.id, nome, estado, cidade }));
 }
 
 export async function entrar(dados = {}) {

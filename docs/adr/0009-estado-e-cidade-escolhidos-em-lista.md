@@ -1,7 +1,12 @@
 # ADR 0009 — Toda conta tem estado e cidade, escolhidos numa lista
 
 - **Data:** 2026-10-27
-- **Status:** aceito e implementado (história H-08, regra RN-06)
+- **Status:** aceito e implementado (história H-08, regra RN-06), com **duas regras substituídas** pelo [ADR 0011](0011-conta-editavel-e-cidade-na-doacao.md) em 2026-11-11
+
+> **Revisão de 2026-11-11 ([ADR 0011](0011-conta-editavel-e-cidade-na-doacao.md)).** Duas coisas que estão escritas abaixo deixaram de valer, e ficam aqui como estavam:
+>
+> 1. **"Não existe jeito de corrigir a cidade de uma conta"**, nas consequências negativas. Era a primeira dívida desta decisão, e foi paga: a pessoa corrige nome, estado e cidade da própria conta (história H-09, regra RN-07).
+> 2. **"A doação não guarda cidade própria: ela herda a de quem publicou"**, na decisão. A premissa que sustentava esse atalho era *"a conta não pode mudar de cidade hoje, então a relação dá sempre a resposta certa"* — e ela caiu junto com a dívida acima. A doação passou a guardar `estado` e `cidade` próprios, copiados no instante da publicação: sem isso, corrigir a cidade do doador reescreveria a cidade das doações já publicadas e já retiradas.
 
 ## Contexto
 

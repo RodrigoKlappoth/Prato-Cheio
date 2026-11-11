@@ -79,6 +79,10 @@ export function criarApp() {
 
   app.get('/api/eu', responder((req) => usuarios.exigirLogin(req.usuario)));
 
+  // PATCH, e não POST: o pedido muda parte da conta — nome, estado e cidade — e
+  // o que não vem no corpo fica como está (H-09, ADR 0011).
+  app.patch('/api/eu', responder((req) => usuarios.editarConta(req.usuario, req.body)));
+
   app.get('/api/ongs/pendentes', responder((req) => usuarios.listarOngsPendentes(req.usuario)));
 
   app.post('/api/ongs/:id/aprovar', responder((req) => usuarios.avaliarOng(req.usuario, req.params.id, 'aprovada')));
