@@ -22,6 +22,7 @@ export async function criarBancoEmMemoria() {
 
 export async function limparBanco() {
   await banco().sessao.deleteMany();
+  await banco().mudancaDeLocalidade.deleteMany();
   await banco().doacao.deleteMany();
   await banco().usuario.deleteMany();
 }

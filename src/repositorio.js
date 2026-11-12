@@ -111,6 +111,38 @@ export async function atualizarConta({ id, nome, estado, cidade }) {
   return banco().usuario.update({ where: { id }, data: { nome, estado, cidade } });
 }
 
+// O rastro da mudança de localidade da conta (RN-08, ADR 0012). Fica ao lado da
+// atualização da conta porque as duas escritas contam a mesma mudança por dois
+// lados: onde a pessoa está agora, e de onde ela saiu.
+export async function inserirMudancaDeLocalidade({ contaId, de, para, mudadaEm }) {
+  return banco().mudancaDeLocalidade.create({
+    data: {
+      conta_id: contaId,
+      estado_anterior: de.estado,
+      cidade_anterior: de.cidade,
+      estado_novo: para.estado,
+      cidade_novo: para.cidade,
+      mudada_em: mudadaEm
+    }
+  });
+}
+
+// Mudanças de localidade das contas de ONG aprovadas, da mais antiga para a mais
+// nova, com a conta de cada uma. Quais delas são alerta para a coordenação é
+// decisão da regra, e não desta consulta: "depois da aprovação" compara duas
+// colunas de tabelas diferentes, e o banco não sabe o que a frase significa.
+export async function listarMudancasDeOngsAprovadas() {
+  return banco().mudancaDeLocalidade.findMany({
+    where: { conta: { papel: 'ong', situacao: 'aprovada' } },
+    orderBy: [{ mudada_em: 'asc' }, { id: 'asc' }],
+    include: {
+      conta: {
+        select: { id: true, nome: true, email: true, estado: true, cidade: true, avaliada_em: true, criado_em: true }
+      }
+    }
+  });
+}
+
 export async function listarOngsPorSituacao(situacao) {
   return banco().usuario.findMany({
     where: { papel: 'ong', situacao },

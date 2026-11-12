@@ -9,6 +9,9 @@ export const SENHA = 'senha-segura';
 export const ESTADO = 'SC';
 export const CIDADE = 'Joinville';
 export const OUTRA_CIDADE = 'Blumenau';
+// Uma terceira cidade atendida, para o caso da conta que muda de cidade mais
+// de uma vez (RN-08): com duas, ida e volta e duas mudanças seriam a mesma coisa.
+export const TERCEIRA_CIDADE = 'Itajaí';
 
 // Prazo de retirada contado a partir do dia de hoje em São Paulo, para o teste
 // não depender do dia em que roda (decisão D1, ADR 0007). Era a dívida que a

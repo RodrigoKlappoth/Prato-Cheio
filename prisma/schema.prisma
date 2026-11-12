@@ -47,6 +47,7 @@ model Usuario {
   sessoes         Sessao[]
   doacoes_doadas  Doacao[] @relation("DoacoesPublicadas")
   doacoes_aceitas Doacao[] @relation("DoacoesAceitas")
+  mudancas        MudancaDeLocalidade[]
 
   @@map("usuarios")
 }
@@ -84,4 +85,26 @@ model Doacao {
   aceita_por    Usuario?       @relation("DoacoesAceitas", fields: [ong_id], references: [id])
 
   @@map("doacoes")
+}
+
+// O rastro da mudança de localidade da conta (RN-08, ADR 0012). A conta diz
+// onde a pessoa está hoje; esta tabela diz onde ela estava, e quando mudou.
+// Sem ela, a correção da conta (H-09) apagava o passado em silêncio: a
+// coordenação aprovava uma ONG de Joinville e, no dia seguinte, a mesma conta
+// era de Blumenau sem nada no banco dizendo que mudou.
+//
+// mudada_em não tem default: o instante vem do "agora" que a regra recebe
+// (ADR 0007), e não do relógio do banco, para o teste poder fixar a data.
+model MudancaDeLocalidade {
+  id              Int      @id @default(autoincrement())
+  conta_id        Int
+  estado_anterior String
+  cidade_anterior String
+  estado_novo     String
+  cidade_novo     String
+  mudada_em       DateTime
+
+  conta Usuario @relation(fields: [conta_id], references: [id], onDelete: Cascade)
+
+  @@map("mudancas_de_localidade")
 }
