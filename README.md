@@ -42,7 +42,7 @@ Para criar uma ONG já aprovada, sem passar pela fila:
 npm run ong:criar -- "Banco de Alimentos" contato@banco.org senha-segura SC "Joinville"
 ```
 
-**Para demonstrar o sistema**, o comando abaixo deixa o banco num estado pronto: uma coordenação, dois doadores em cidades diferentes, uma ONG aprovada, duas ONGs pendentes e seis doações em estados diferentes do ciclo de vida, todas com a senha `12345678`.
+**Para demonstrar o sistema**, o comando abaixo deixa o banco num estado pronto: uma coordenação, dois doadores em cidades diferentes, duas ONGs aprovadas — uma delas mudou de cidade depois de aprovada —, duas ONGs pendentes e seis doações em estados diferentes do ciclo de vida, todas com a senha `12345678`.
 
 ```bash
 npm run semear -- --confirmar   # ATENÇÃO: apaga todas as contas e doações do banco do .env
@@ -62,7 +62,7 @@ Os testes rodam num **PostgreSQL em memória** (PGlite), criado a partir das mes
 | 2 — Projeto | **PostgreSQL no Neon** | Prisma com migrations versionadas. A troca, prevista para a U3, foi antecipada porque o deploy na Vercel depende dela |
 | 3 — Construção | PostgreSQL no Neon | — |
 
-- **O modelo** das tabelas está em `prisma/schema.prisma`: usuários, sessões e doações.
+- **O modelo** das tabelas está em `prisma/schema.prisma`: usuários, sessões, doações e as mudanças de localidade das contas.
 - **Cada mudança** no modelo vira uma pasta em `prisma/migrations/` com o SQL, que entra no Pull Request junto com o código.
 - **Para mudar o modelo:** edite o `schema.prisma` e rode `npm run db:nova-migration -- nome-da-mudanca`. Faça isso com um branch de desenvolvimento do Neon no `.env`, nunca com o banco que a rede usa. Depois, `npm run db:migrar` aplica a mudança em cada banco.
 - **Para ver o que falta aplicar:** `npx prisma migrate status`.
@@ -76,7 +76,7 @@ Os porquês estão nos ADRs [0005](docs/adr/0005-postgresql-no-lugar-do-sqlite.m
 src/server.js          entrypoint (npm start)
 src/app.js             página inicial, rotas da API e cookie da sessão
 src/doacoes.js         regras das doações: publicar, listar, aceitar, retirar e cancelar (RN-01 a RN-05)
-src/usuarios.js        regras de conta: cadastro, login, sessão, papéis, aprovação da ONG e correção da própria conta (H-04 a H-06, H-09)
+src/usuarios.js        regras de conta: cadastro, login, sessão, papéis, aprovação da ONG, correção da própria conta e o rastro da mudança de cidade (H-04 a H-06, H-09, H-11)
 src/regras.js          peças comuns: erro com status, id válido, campos obrigatórios e o dia de hoje em São Paulo
 src/localidades.js     onde a rede atende: estados e cidades (RN-06)
 src/repositorio.js     acesso ao banco (Prisma Client)
@@ -170,6 +170,7 @@ Ela nasceu das três coisas que mais nos custaram caro até agora: regra combina
 
 **Pronto na Unidade 3:**
 - **A conta é editável, e a doação guarda a cidade em que foi publicada** (H-09, RN-07, [ADR 0011](docs/adr/0011-conta-editavel-e-cidade-na-doacao.md)). Quem escolheu a cidade errada no cadastro corrige na própria tela, em **Conta**: era a primeira dívida registrada do [ADR 0009](docs/adr/0009-estado-e-cidade-escolhidos-em-lista.md), e até aqui a saída era criar outra conta ou alguém corrigir no banco. E-mail, senha, papel e situação **não** mudam por aí, e a cidade não muda com doação em circulação. A história derrubou uma premissa do ADR 0009: a doação **herdava** a cidade pela conta de quem publicou, e com a conta editável isso faria a doação da semana passada trocar de cidade hoje — agora ela guarda `estado` e `cidade` próprios, copiados no instante da publicação.
+- **O rastro da mudança de cidade** (H-11, RN-08, [ADR 0012](docs/adr/0012-rastro-da-mudanca-de-localidade.md)). Toda mudança de estado ou cidade de uma conta fica gravada — de onde, para onde e quando —, e a coordenação vê, na tela dela, as contas de ONG **aprovadas** que mudaram de cidade **depois** da aprovação, para manter a aprovação ou recusar a conta. Era a dívida que o [ADR 0011](docs/adr/0011-conta-editavel-e-cidade-na-doacao.md) registrou na própria entrega da conta editável: a aprovação é dada olhando uma cidade, e a conta podia passar a dizer outra sem deixar marca. Corrigir a cidade continua livre; o que mudou é que não é mais invisível.
 - **Definição de pronto do grupo**, [acima](#definição-de-pronto), escrita a partir do que nos custou caro nas duas primeiras unidades.
 
 A fatia atravessa todas as camadas de propósito — é isso que faz dela um *walking skeleton*:
@@ -183,20 +184,23 @@ A fatia atravessa todas as camadas de propósito — é isso que faz dela um *wa
 | ONG cria a conta | escolha **Sou ONG** + estado e cidade | `POST /api/cadastro`, `GET /api/localidades` | `cadastrarPeloSite` — conta de ONG nasce pendente (RN-04) e a localidade é validada contra a lista (RN-06) | `inserirUsuario` — grava estado, cidade e situação |
 | Coordenação aprova | tela **Pedidos de conta** | `GET /api/ongs/pendentes`, `POST /api/ongs/:id/aprovar` e `/recusar` | `listarOngsPendentes` e `avaliarOng` — só a coordenação, de qualquer cidade da rede | `listarOngsPorSituacao` e `avaliarConta` — grava quem decidiu e quando |
 | ONG retira ou devolve | botões **Confirmar retirada** e **Cancelar aceite** | `POST /api/doacoes/:id/retirar` e `/cancelar` | `confirmarRetirada` e `cancelarAceite` — só a ONG que aceitou (RN-05) | `registrarRetirada` grava `retirada_em`; `devolverParaDisponivel` apaga o aceite |
-| Cada um corrige a própria conta | tela **Minha conta** | `PATCH /api/eu` | `editarConta` — muda nome, estado e cidade; confere a cidade na lista e barra a troca com doação em circulação (RN-07) | `atualizarConta` — grava só esses três campos |
+| Cada um corrige a própria conta | tela **Minha conta** | `PATCH /api/eu` | `editarConta` — muda nome, estado e cidade; confere a cidade na lista, barra a troca com doação em circulação (RN-07) e grava a mudança de localidade (RN-08) | `atualizarConta` grava só esses três campos; `inserirMudancaDeLocalidade` grava de onde, para onde e quando |
+| Coordenação vê quem mudou de cidade | bloco **Mudaram de cidade**, na tela da coordenação | `GET /api/ongs/mudancas-de-cidade` | `listarOngsQueMudaramDeCidade` — ONG aprovada cuja cidade de hoje é diferente da cidade em que foi aprovada; uma linha por conta (RN-08) | `listarMudancasDeOngsAprovadas` — o rastro das contas de ONG aprovadas |
 | Cada um vê o que já passou | listas **Suas doações recentes** e **Suas doações aceitas** | `GET /api/doacoes/recentes` | `listarRecentes` — o doador vê o que publicou, a ONG o que aceitou | `listarPublicadasPor` e `listarAceitasPor` |
 
-Cada critério de aceite em `docs/analise.md` aponta para um teste com nome. São **84 testes**, todos passando: 8 em `tests/doacoes.test.js`, 12 em `tests/contas.test.js`, 13 em `tests/aprovacao.test.js`, 7 em `tests/prazo.test.js`, 14 em `tests/historico.test.js`, 9 em `tests/localidade.test.js`, 18 em `tests/conta.test.js` e 3 em `tests/deploy.test.js`, que conferem o que a Vercel exige. **36 deles verificam que o sistema recusa algo:** erro de regra vira `400`, falta de login vira `401` e papel, conta ou cidade sem permissão vira `403`.
+Cada critério de aceite em `docs/analise.md` aponta para um teste com nome. São **96 testes**, todos passando: 8 em `tests/doacoes.test.js`, 12 em `tests/contas.test.js`, 13 em `tests/aprovacao.test.js`, 7 em `tests/prazo.test.js`, 14 em `tests/historico.test.js`, 9 em `tests/localidade.test.js`, 18 em `tests/conta.test.js`, 12 em `tests/rastro.test.js` e 3 em `tests/deploy.test.js`, que conferem o que a Vercel exige. **39 deles verificam que o sistema recusa algo:** erro de regra vira `400`, falta de login vira `401` e papel, conta ou cidade sem permissão vira `403`.
 
 **Falta (backlog):**
 - Trocar a região da função da Vercel para São Paulo (`gru1`), a mesma do banco. Hoje ela roda em Washington (`iad1`) ([ADR 0002](docs/adr/0002-hospedagem-na-vercel.md)).
 - Aviso às ONGs quando surge uma doação, depois de decidirmos a D3 de [`docs/decisoes-de-projeto.md`](docs/decisoes-de-projeto.md) — a última das três decisões da Unidade 2 em aberto.
 - **Liberação automática do aceite:** aceite sem retirada confirmada em 4 h volta para `disponivel`. Era a outra alternativa da D2 e depende de uma tarefa agendada, porque a função da Vercel só acorda quando chega requisição ([ADR 0008](docs/adr/0008-retirada-confirmada-e-cancelamento-do-aceite.md)).
 - **Executar o experimento H1** com 8 doadores reais. O requisito de publicar em 30 segundos ainda é uma suposição ([`docs/experimento-h1.md`](docs/experimento-h1.md)).
-- **Teste automatizado da tela.** Os 66 testes cobrem regras e rotas; `public/tela.js` é conferido à mão.
+- **Teste automatizado da tela.** Os 96 testes cobrem regras e rotas; `public/tela.js` é conferido à mão.
 - Recuperação de senha e limite de tentativas de login ([ADR 0003](docs/adr/0003-identificacao-por-email-e-senha.md)). Os dois são pré-requisitos para a rede atender outras cidades ([ADR 0006](docs/adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md)).
 - **Trocar o e-mail e a senha da conta.** A correção de conta (H-09) mexe em nome, estado e cidade; os dois outros campos continuam fora, e a senha depende da recuperação por e-mail acima ([ADR 0011](docs/adr/0011-conta-editavel-e-cidade-na-doacao.md)).
-- **Guardar a mudança de cidade da conta, com data.** Hoje a correção não deixa rastro: depois dela, ninguém sabe que a conta era de outra cidade — e, no caso da ONG, a coordenação aprovou uma conta que dizia ser de outro lugar. É a dívida que o [ADR 0011](docs/adr/0011-conta-editavel-e-cidade-na-doacao.md) registra.
+- **Avisar a coordenação quando uma conta muda de cidade.** Hoje a mudança fica gravada e aparece na tela, mas ninguém é avisado: a coordenação precisa abrir a tela para ver. O aviso depende da decisão D3, a mesma que o aviso às ONGs espera ([ADR 0012](docs/adr/0012-rastro-da-mudanca-de-localidade.md)).
+- **Dizer "eu vi e está tudo bem" sem regravar a aprovação.** Resolver o alerta de mudança de cidade hoje é aprovar a conta de novo, e isso sobrescreve a data da aprovação original ([ADR 0012](docs/adr/0012-rastro-da-mudanca-de-localidade.md)).
+- **A conta que muda de cidade e volta não aparece no alerta.** O rastro guarda as duas mudanças, mas a lista da coordenação compara a cidade da aprovação com a de hoje, então a ida e volta passa batida. Está registrado como risco no [ADR 0012](docs/adr/0012-rastro-da-mudanca-de-localidade.md), com a alternativa pronta se virar caso real.
 - **Mais cidades em `src/localidades.js`.** A lista tem 61 das 295 cidades de SC, e crescer depende de um PR nosso.
 - **Aprovação por cidade de volta**, quando a rede tiver pessoa de coordenação em mais de uma cidade ([ADR 0010](docs/adr/0010-aprovacao-central-da-conta-de-ong.md)).
 

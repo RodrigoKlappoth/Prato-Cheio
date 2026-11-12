@@ -152,11 +152,30 @@ export async function editarConta(usuario, dados = {}, agora = new Date()) {
     cidade: dados.cidade ?? usuario.cidade
   });
 
-  if (estado !== usuario.estado || cidade !== usuario.cidade) {
+  const mudouDeLocalidade = estado !== usuario.estado || cidade !== usuario.cidade;
+  if (mudouDeLocalidade) {
     await exigirNadaEmCirculacao(usuario, agora);
   }
 
-  return semSenha(await repo.atualizarConta({ id: usuario.id, nome, estado, cidade }));
+  const conta = semSenha(await repo.atualizarConta({ id: usuario.id, nome, estado, cidade }));
+
+  // A mudança de localidade fica gravada: de onde, para onde e quando (RN-08,
+  // ADR 0012). Só a de localidade: gravar a correção de nome, ou o pedido que
+  // reenvia a mesma cidade, encheria de ruído a única lista que existe para ser
+  // olhada com atenção — a da coordenação.
+  //
+  // Depois da escrita da conta, e não antes: rastro de uma mudança que a regra
+  // ainda podia recusar é pior do que rastro nenhum.
+  if (mudouDeLocalidade) {
+    await repo.inserirMudancaDeLocalidade({
+      contaId: usuario.id,
+      de: { estado: usuario.estado, cidade: usuario.cidade },
+      para: { estado, cidade },
+      mudadaEm: agora
+    });
+  }
+
+  return conta;
 }
 
 export async function entrar(dados = {}) {
@@ -211,6 +230,51 @@ export function exigirOngAprovada(usuario) {
 export async function listarOngsPendentes(coordenador) {
   exigirPapel(coordenador, 'coordenacao', 'só a coordenação vê os pedidos de conta de ONG');
   return repo.listarOngsPorSituacao('pendente');
+}
+
+// A coordenação aprovou uma conta que dizia ser de uma cidade; esta lista mostra
+// as que, depois disso, passaram a dizer outra (RN-08, ADR 0012). O alerta não
+// muda nada por si: quem decide continua sendo a coordenação (RN-04), que mantém
+// a aprovação ou recusa a conta pelas rotas que já existem.
+//
+// A comparação é entre a localidade da aprovação e a de hoje, e não "existe
+// mudança registrada depois da aprovação": a conta que mudou e voltou está onde
+// foi aprovada, e alertar sobre ela gastaria atenção com nada.
+export async function listarOngsQueMudaramDeCidade(coordenador) {
+  exigirPapel(coordenador, 'coordenacao', 'só a coordenação vê as mudanças de cidade das contas de ONG');
+
+  const alertas = new Map();
+  for (const mudanca of await repo.listarMudancasDeOngsAprovadas()) {
+    const { conta } = mudanca;
+
+    // A ONG criada no terminal nasce aprovada e não tem avaliada_em (ADR 0003):
+    // para ela, a aprovação é o próprio cadastro.
+    const aprovadaEm = conta.avaliada_em ?? conta.criado_em;
+    // Empate de milissegundo com a aprovação conta como depois: esconder uma
+    // mudança custa mais do que mostrar uma a mais.
+    if (mudanca.mudada_em < aprovadaEm) continue;
+
+    // Uma linha por conta, e não por mudança: a coordenação decide sobre a
+    // conta. De onde vem da primeira mudança depois da aprovação, para onde é a
+    // localidade de agora, e quando é a da mudança mais recente.
+    const alerta = alertas.get(conta.id) ?? {
+      id: conta.id,
+      nome: conta.nome,
+      email: conta.email,
+      estado_anterior: mudanca.estado_anterior,
+      cidade_anterior: mudanca.cidade_anterior,
+      estado: conta.estado,
+      cidade: conta.cidade,
+      mudancas: 0
+    };
+    alerta.mudada_em = mudanca.mudada_em;
+    alerta.mudancas += 1;
+    alertas.set(conta.id, alerta);
+  }
+
+  return [...alertas.values()].filter(
+    (alerta) => alerta.estado !== alerta.estado_anterior || alerta.cidade !== alerta.cidade_anterior
+  );
 }
 
 export async function avaliarOng(coordenador, id, situacao, agora = new Date()) {

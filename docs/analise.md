@@ -97,6 +97,7 @@ Regras que ninguém enuncia — estão no hábito de quem opera. Aqui viram fras
 | RN-04 | "Essas ONGs aí eu conheço" | Só **ONG com conta aprovada pela coordenação** aceita doações. ONG com conta pendente ou recusada entra e vê a lista, mas o aceite é recusado com o motivo, e a doação continua *disponivel*. Qualquer conta de coordenação aprova ONG de qualquer cidade da rede. | `tests/aprovacao.test.js` → "deixa a ONG pendente ver a lista, mas recusa o aceite dela", "recusa o aceite da ONG que a coordenação recusou" e "aprova uma ONG de outra cidade, porque a coordenação atende a rede toda" | Implementada na U2 ([ADR 0006](adr/0006-cadastro-de-ong-com-aprovacao-da-cidade.md) e [ADR 0010](adr/0010-aprovacao-central-da-conta-de-ong.md)) |
 | RN-06 | "A gente atende aqui no bairro" | **Toda conta tem estado e cidade**, escolhidos numa lista, e a ONG **vê e aceita só as doações da sua cidade**. A doação fica na cidade em que foi publicada. Tentar aceitar doação de outra cidade é recusado com o motivo, mesmo com o número da doação em mãos. | `tests/localidade.test.js` → "separa as listas de duas ONGs em cidades diferentes" e "recusa o aceite de doação de outra cidade, mesmo sabendo o número dela" | Implementada na U2 ([ADR 0009](adr/0009-estado-e-cidade-escolhidos-em-lista.md)). A doação **herdava** a cidade pela conta de quem publicou; com a conta editável (RN-07) ela passou a guardar a própria cópia ([ADR 0011](adr/0011-conta-editavel-e-cidade-na-doacao.md)) |
 | RN-07 | "Eu errei a cidade quando me cadastrei" | **Cada pessoa corrige o nome, o estado e a cidade da própria conta**, e a cidade nova é conferida contra a mesma lista do cadastro. E-mail, senha, papel e situação não mudam por aí. **A cidade não muda com doação em circulação**: doação do doador ainda disponível e no prazo, ou aceite da ONG ainda sem retirada confirmada, bloqueiam a troca com o motivo. | `tests/conta.test.js` → "CA-09.1 — corrige a cidade escolhida errada no cadastro", "CA-09.5 — ignora e-mail, senha, papel e situação vindos no corpo do pedido" e "CA-09.6 — recusa a mudança de cidade do doador com doação esperando uma ONG" | Implementada na U3 ([ADR 0011](adr/0011-conta-editavel-e-cidade-na-doacao.md)) |
+| RN-08 | "Mas essa ONG não era de Joinville?" | **Toda mudança de estado ou cidade de uma conta fica gravada**: qual conta, de onde, para onde e quando. Correção só de nome não gera registro. A **coordenação vê as contas de ONG aprovadas cuja localidade mudou depois da aprovação**, de onde para onde, e decide se mantém a aprovação ou recusa a conta. A mudança, por si, não altera a situação da conta: quem aprova e recusa continua sendo a coordenação (RN-04). | `tests/rastro.test.js` → "CA-11.1 — grava de onde, para onde e quando a conta muda de localidade", "CA-11.3 — mostra a ONG aprovada que mudou de cidade, com de onde e para onde" e "CA-11.5 — manter aprovada regrava a aprovação e tira a conta da lista" | Implementada na U3 ([ADR 0012](adr/0012-rastro-da-mudanca-de-localidade.md)) |
 
 **Contraexemplo do que não vale como regra:** "o sistema deve ser rápido", "tratar os casos especiais". Não têm sujeito, condição nem efeito — ninguém consegue dizer se foram cumpridas.
 
@@ -113,6 +114,7 @@ Regras que ninguém enuncia — estão no hábito de quem opera. Aqui viram fras
 | H-07 *(U2)* | Como **ONG**, quero confirmar a retirada ou cancelar o aceite, e **como doador**, quero ver o que aconteceu com o que publiquei, para que a comida que uma ONG não vai buscar volte para a lista em vez de vencer reservada. | **I**ndependent é fraca: depende de H-01 e H-02 existirem. **V**aluable é a mais forte das três partes juntas, e é por isso que não fatiamos: o cancelamento sozinho resolveria o risco da ONG que não retira, mas sem a confirmação de retirada o OBJ-01 continuaria sem poder ser medido, e sem o histórico ninguém encontraria a doação para cancelar. Nasce da decisão D2 e do [ADR 0008](adr/0008-retirada-confirmada-e-cancelamento-do-aceite.md). |
 | H-08 *(U2)* | Como **ONG**, quero ver só as doações da minha cidade, e **como doador**, quero informar minha cidade ao criar a conta, para que ninguém desloque voluntário para outra cidade atrás de 10 porções de sopa. | **S**mall é boa, mas a história junta duas coisas por necessidade: informar a cidade sem filtrar a lista deixaria um campo obrigatório que não faz nada, e filtrar sem o doador informar a cidade é impossível, porque a doação herda a cidade de quem publicou. **T**estable é forte: duas ONGs em cidades diferentes veem listas diferentes, e isso se escreve num teste. Nasce do [ADR 0009](adr/0009-estado-e-cidade-escolhidos-em-lista.md). |
 | H-09 *(U3)* | Como **doador ou ONG**, quero corrigir o nome e a cidade da minha conta, para não ficar fora da rede por ter escolhido a cidade errada no cadastro. | **I**ndependent e **S**mall são boas: a história é uma rota e um formulário. **V**aluable é maior do que parece — hoje quem erra a cidade não vê doação nenhuma e não tem saída dentro do sistema. A história obrigou uma decisão que a H-08 tinha deixado de pé: se a doação herda a cidade da conta, mudar a conta move a doação de ontem. Daí a cópia da localidade na doação, no [ADR 0011](adr/0011-conta-editavel-e-cidade-na-doacao.md). Era a primeira dívida registrada do [ADR 0009](adr/0009-estado-e-cidade-escolhidos-em-lista.md). |
+| H-11 *(U3)* | Como **coordenação**, quero ver quais contas de ONG mudaram de cidade depois de eu aprovar, de onde para onde e quando, para decidir se a aprovação que eu dei continua valendo. | **I**ndependent é boa: depende da H-09 existir, mas não muda nada nela. **S**mall é razoável — uma tabela, uma consulta e uma lista na tela da coordenação. **V**aluable é o ponto fraco e o motivo da história: ninguém pediu, e ela não resolve dor de hoje. Ela fecha um buraco que nós mesmos abrimos na H-09 e registramos no [ADR 0011](adr/0011-conta-editavel-e-cidade-na-doacao.md) — "nada guarda o histórico da própria conta", e a coordenação aprovou uma ONG que dizia ser de outro lugar. **T**estable é forte: o rastro é dado no banco, e o alerta da coordenação é uma lista com ONG dentro e ONG fora. |
 
 **Nota de implementação da H-03 (dívida já identificada):** o fixture `SOPA` em `tests/doacoes.test.js` usa `validade: '2026-08-01'` — uma data que **já passou**. No dia em que RN-03 for implementada, os testes hoje verdes de H-01 e H-02 quebram em bloco, porque a doação de teste passa a nascer vencida. A correção vem junto com a história: o prazo passa a ser calculado relativamente (`hoje + 1 dia`) ou o "agora" vira parâmetro das funções de `src/doacoes.js`. Registrar isso agora evita descobrir na véspera da entrega.
 
@@ -479,6 +481,75 @@ Testes em `tests/conta.test.js`.
   **Quando** o doador muda a conta para Blumenau e publica outra,
   **Então** a doação antiga continua registrada em Joinville, no histórico das duas pontas, e só a nova aparece para as ONGs de Blumenau.
   → "CA-09.9 — a doação já retirada mantém a cidade de origem no histórico" e "CA-09.9 — a doação esperando continua na lista da cidade em que foi publicada". É o critério que prova a cópia da localidade na doação ([ADR 0011](adr/0011-conta-editavel-e-cidade-na-doacao.md)): sem ela, o histórico de ontem mudaria de lugar hoje.
+
+
+### H-11 — O rastro da mudança de cidade (RN-08, ADR 0012) — Unidade 3
+
+Testes em `tests/rastro.test.js`.
+
+- **CA-11.1 — a mudança de localidade fica gravada**
+  **Dado** que minha conta é de Blumenau,
+  **Quando** corrijo a conta para Joinville,
+  **Então** o sistema responde `200` e o banco guarda um registro com a minha conta, **de** Blumenau/SC, **para** Joinville/SC e o instante da mudança.
+  → "CA-11.1 — grava de onde, para onde e quando a conta muda de localidade"
+
+- **CA-11.2 — o que não é mudança de localidade não vira registro**
+  **Dado** que minha conta é de Joinville,
+  **Quando** corrijo só o nome, ou reenvio a mesma cidade que já está gravada,
+  **Então** o pedido é atendido e **nada** é acrescentado ao rastro.
+  → "CA-11.2 — corrigir só o nome não grava mudança de localidade" e "CA-11.2 — reenviar a mesma cidade não grava mudança de localidade"
+
+- **CA-11.3 — a coordenação vê a ONG que mudou de cidade depois de aprovada**
+  **Dado** que aprovei uma ONG em Joinville e ela corrigiu a conta para Blumenau, e que existem também uma ONG aprovada que não mudou e um doador que mudou de cidade,
+  **Quando** abro a lista de mudanças,
+  **Então** vejo **só** a ONG que mudou, com nome, e-mail, de onde, para onde e quando — a ONG parada e o doador ficam fora.
+  → "CA-11.3 — mostra a ONG aprovada que mudou de cidade, com de onde e para onde" e "CA-11.3 — deixa fora a ONG que não mudou e o doador que mudou"
+
+- **CA-11.4 — mudança antes da aprovação não é alerta**
+  **Dado** uma ONG que corrigiu a cidade enquanto o pedido dela estava pendente, e que eu aprovei **depois**,
+  **Quando** abro a lista de mudanças,
+  **Então** ela não aparece: eu aprovei a conta já na cidade em que ela está.
+  → "CA-11.4 — a ONG que mudou de cidade antes da aprovação não entra na lista"
+
+- **CA-11.5 — a coordenação resolve o alerta pelas duas saídas**
+  **Dado** uma ONG na lista de mudanças,
+  **Quando** escolho **manter aprovada**,
+  **Então** a aprovação é regravada com a data de hoje e a conta sai da lista, continuando a aceitar doações;
+  **Quando** escolho **recusar**,
+  **Então** a conta sai da lista e volta a não aceitar doações (RN-04).
+  → "CA-11.5 — manter aprovada regrava a aprovação e tira a conta da lista" e "CA-11.5 — recusar tira a conta da lista e barra o aceite"
+
+- **CA-11.6 — o rastro é da coordenação, e só dela**
+  **Dado** que entrei como doador, como ONG, ou que não entrei,
+  **Quando** abro a lista de mudanças,
+  **Então** o sistema responde `403` para doador e ONG e `401` sem login — e a lista não vaza em nenhum dos três casos.
+  → "CA-11.6 — recusa a lista de mudanças a quem não é da coordenação" e "CA-11.6 — recusa a lista de mudanças sem login"
+
+Os dois critérios abaixo **não estavam escritos** quando a história foi para o Pull Request: eles apareceram ao escrever os testes dos seis de cima, numa pergunta que nenhum critério respondia — *e se a mesma conta mexer na cidade mais de uma vez?* Os seis primeiros tratam de uma mudança só. Registramos os dois aqui, com o resto, em vez de resolver no código e deixar a pergunta sem dono.
+
+- **CA-11.7 — a conta que foi e voltou não é alerta** *(caso limite que o critério original não previa)*
+  **Dado** uma ONG que eu aprovei em Joinville, mudou para Blumenau e **voltou** para Joinville,
+  **Quando** abro a lista de mudanças,
+  **Então** ela não aparece — a conta está na cidade em que eu a aprovei —, e as **duas** mudanças continuam gravadas no rastro.
+  → "CA-11.7 — a conta que volta para a cidade da aprovação sai da lista, e o rastro guarda as duas viagens". É o critério que decide o que a lista compara: a localidade da aprovação com a de hoje, e não "existe mudança depois da aprovação". A outra leitura também era defensável, e está nas alternativas do [ADR 0012](adr/0012-rastro-da-mudanca-de-localidade.md).
+
+- **CA-11.8 — duas mudanças, uma linha** *(caso limite que o critério original não previa)*
+  **Dado** uma ONG que eu aprovei em Joinville e que mudou para Blumenau e depois para Itajaí,
+  **Quando** abro a lista de mudanças,
+  **Então** ela aparece **uma vez**, de Joinville (onde eu aprovei) para Itajaí (onde ela está), com a contagem de 2 mudanças e a data da mais recente.
+  → "CA-11.8 — a ONG que mudou duas vezes aparece uma vez, de onde foi aprovada para onde está". Uma linha por mudança faria a mesma ONG pedir decisão duas vezes, e decidir duas vezes sobre a mesma conta é o jeito mais fácil de aprovar sem ler.
+
+**Os testes da H-11 têm dente, e a medição corrigiu dois deles.** A definição de pronto exige desligar a regra e ver o teste falhar. Fizemos isso com as duas regras da RN-08, com os 96 testes rodando:
+
+| Regra desligada | Como | Vermelhos | Verdes |
+|---|---|:--:|:--:|
+| O rastro grava a mudança de localidade (`src/usuarios.js`, em `editarConta`) | gravar quando a cidade **não** muda | **11**, todos em `tests/rastro.test.js` | 85 |
+| A lista é das mudanças **depois** da aprovação (`listarOngsQueMudaramDeCidade`) | trocar `<` por `>=` na comparação com a data da aprovação | **7**, todos em `tests/rastro.test.js` | 89 |
+
+Duas coisas que a medição mostrou, e que não dariam para adivinhar:
+
+1. **Na primeira rodada, dois testes do CA-11.5 ficaram verdes com a regra desligada** — eles esperavam a lista vazia *depois* da decisão da coordenação, e sem rastro a lista já nascia vazia: passavam pelo motivo errado. O arranjo dos dois passou a conferir que o alerta apareceu **antes**, e aí os dois passaram a falhar junto com os outros. Foi o único jeito de descobrir isso: os dois testes estavam verdes, no código certo e no errado.
+2. **Nenhum dos 84 testes anteriores notou qualquer uma das duas inversões.** Era esperado — a RN-08 só acrescenta escrita e leitura novas —, e é também o lembrete de que a regra nova está protegida por um arquivo só: se `tests/rastro.test.js` for apagado, o sistema continua "verde" sem rastro nenhum.
 
 ## Riscos
 

@@ -1,5 +1,5 @@
 import { banco, encerrar } from '../src/db.js';
-import { cadastrarPeloSite, cadastrarOng, cadastrarCoordenacao } from '../src/usuarios.js';
+import { cadastrarPeloSite, cadastrarOng, cadastrarCoordenacao, avaliarOng, editarConta } from '../src/usuarios.js';
 import { criarDoacao, aceitar, confirmarRetirada } from '../src/doacoes.js';
 import { hojeNaRede } from '../src/regras.js';
 
@@ -88,6 +88,20 @@ async function semear() {
     papel: 'ong'
   });
 
+  // ONG aprovada em Joinville que depois corrigiu a conta para Blumenau: é o
+  // alerta da RN-08 na tela da coordenação (ADR 0012). Passa pelo caminho de
+  // verdade — cadastro, aprovação e correção da conta —, e não por INSERT.
+  const { usuario: mesaSolidaria } = await cadastrarPeloSite({
+    nome: 'Mesa Solidária',
+    email: 'contato@mesasolidaria.org',
+    senha: SENHA,
+    estado: ESTADO,
+    cidade: JOINVILLE,
+    papel: 'ong'
+  });
+  const mesaAprovada = await avaliarOng(marta, mesaSolidaria.id, 'aprovada');
+  const mesaEmBlumenau = await editarConta(mesaAprovada, { estado: ESTADO, cidade: BLUMENAU });
+
   const esperando = await criarDoacao(paulo, {
     tipo: 'Pães do dia',
     quantidade: '30 unidades',
@@ -129,7 +143,7 @@ async function semear() {
     new Date(`${dia(-2)}T12:00:00Z`)
   );
 
-  return { marta, paulo, mercado, bancoDeAlimentos, cozinha, casaDeApoio, esperando, venceHoje, emBlumenau, aceitaAgora, jaRetirada, vencida };
+  return { marta, paulo, mercado, bancoDeAlimentos, cozinha, casaDeApoio, mesaEmBlumenau, esperando, venceHoje, emBlumenau, aceitaAgora, jaRetirada, vencida };
 }
 
 if (!process.argv.includes('--confirmar')) {
@@ -148,12 +162,15 @@ if (!process.argv.includes('--confirmar')) {
     console.log('  ONG aprovada         contato@bancodealimentos.org    Joinville/SC');
     console.log('  ONG pendente         contato@cozinhadavila.org       Joinville/SC');
     console.log('  ONG pendente         contato@casadeapoio.org         Blumenau/SC');
+    console.log('  ONG aprovada         contato@mesasolidaria.org       mudou de Joinville para Blumenau');
     console.log('\nDoações em Joinville:');
     console.log(`  nº ${semeado.esperando.id} esperando uma ONG, retirar até ${semeado.esperando.validade}`);
     console.log(`  nº ${semeado.venceHoje.id} esperando uma ONG, vence HOJE (${semeado.venceHoje.validade})`);
     console.log(`  nº ${semeado.aceitaAgora.id} aceita pelo Banco de Alimentos, esperando a retirada`);
     console.log(`  nº ${semeado.jaRetirada.id} retirada confirmada`);
     console.log(`  nº ${semeado.vencida.id} vencida: está no banco e NÃO aparece na lista (RN-03)`);
+    console.log('\nNa tela da coordenação, em "Mudaram de cidade":');
+    console.log(`  nº ${semeado.mesaEmBlumenau.id} Mesa Solidária, aprovada em Joinville e hoje em Blumenau`);
     console.log('\nDoação em Blumenau:');
     console.log(`  nº ${semeado.emBlumenau.id} só aparece para ONG de Blumenau (RN-06)`);
   } catch (erro) {

@@ -206,6 +206,7 @@ function entrouComo(usuario) {
   if (usuario.papel === 'coordenacao') {
     mostrarTela('tela-coordenacao');
     carregarPedidos();
+    carregarMudancas();
   } else if (usuario.papel === 'ong') {
     const aviso = avisoDaConta(usuario);
     $('situacao-da-conta').textContent = aviso;
@@ -525,6 +526,86 @@ async function avaliarPedido(pedido, acao, cartao, botoes) {
 
 $('atualizar-pedidos').addEventListener('click', carregarPedidos);
 
+function atualizarContagemDeMudancas() {
+  const total = $('mudancas').querySelectorAll('.comanda:not(.avaliada)').length;
+  $('contagem-mudancas').textContent = total === 0
+    ? ''
+    : `${total} ${total === 1 ? 'conta mudou' : 'contas mudaram'} de cidade depois de aprovada.`;
+}
+
+function semMudancas() {
+  return cartaoVazio(
+    'Nenhuma conta mudou de cidade depois de aprovada.',
+    'Se uma ONG aprovada corrigir o estado ou a cidade, ela aparece aqui para você decidir.'
+  );
+}
+
+// O alerta da RN-08: a coordenação aprovou uma conta que dizia ser de uma
+// cidade, e ela passou a dizer outra (ADR 0012). As duas saídas são as mesmas
+// duas da fila de pedidos — manter a aprovação ou recusar a conta —, e por isso
+// o cartão é o mesmo, com o de-onde-para-onde no lugar da cidade única.
+function cartaoDaMudanca(conta, ordem) {
+  const cartao = elemento('li', 'comanda');
+  cartao.style.setProperty('--ordem', ordem);
+
+  const quando = elemento('p', 'comanda-prazo', `Mudou em ${diaLegivel(conta.mudada_em)}`);
+  quando.append(elemento('span', 'comanda-numero', `nº ${conta.id}`));
+
+  const manter = elemento('button', 'botao botao-cheio', 'Manter aprovada');
+  manter.type = 'button';
+  const recusar = elemento('button', 'botao botao-contorno', 'Recusar');
+  recusar.type = 'button';
+
+  const rodape = elemento('div', 'comanda-rodape duas-acoes');
+  rodape.append(manter, recusar);
+  for (const [acao, botao] of [['aprovar', manter], ['recusar', recusar]]) {
+    botao.addEventListener('click', () => decidirSobreMudanca(conta, acao, cartao, [manter, recusar]));
+  }
+
+  cartao.append(
+    quando,
+    elemento('h2', 'comanda-tipo', conta.nome),
+    elemento('p', 'comanda-quantidade', conta.email),
+    elemento(
+      'p',
+      'comanda-origem',
+      `${conta.cidade_anterior}/${conta.estado_anterior} → ${conta.cidade}/${conta.estado}`
+        + (conta.mudancas > 1 ? ` · ${conta.mudancas} mudanças` : '')
+    ),
+    rodape
+  );
+  return cartao;
+}
+
+async function carregarMudancas() {
+  const { ok, status, dados } = await chamarApi('/api/ongs/mudancas-de-cidade');
+  if (status === 401) return sessaoEncerrada();
+  if (!ok) return avisar(dados.erro, 'erro');
+  $('mudancas').replaceChildren(...(dados.length ? dados.map(cartaoDaMudanca) : [semMudancas()]));
+  atualizarContagemDeMudancas();
+}
+
+async function decidirSobreMudanca(conta, acao, cartao, botoes) {
+  for (const botao of botoes) botao.disabled = true;
+  const { ok, status, dados } = await chamarApi(`/api/ongs/${conta.id}/${acao}`, { metodo: 'POST' });
+  if (status === 401) return sessaoEncerrada();
+  if (!ok) {
+    avisar(dados.erro, 'erro');
+    return carregarMudancas();
+  }
+  cartao.classList.add('avaliada');
+  atualizarContagemDeMudancas();
+  avisar(acao === 'aprovar'
+    ? `${conta.nome} continua aprovada, agora em ${conta.cidade}`
+    : `${conta.nome} volta a não aceitar doações`);
+  setTimeout(() => {
+    cartao.remove();
+    if (!$('mudancas').querySelector('.comanda')) $('mudancas').replaceChildren(semMudancas());
+  }, reduzirAnimacoes.matches ? 0 : 900);
+}
+
+$('atualizar-mudancas').addEventListener('click', carregarMudancas);
+
 const HISTORICO = {
   doador: {
     lista: 'lista-minhas',
@@ -611,7 +692,10 @@ document.addEventListener('visibilitychange', () => {
     carregarDoacoes();
     carregarRecentes();
   }
-  if (!$('tela-coordenacao').hidden) carregarPedidos();
+  if (!$('tela-coordenacao').hidden) {
+    carregarPedidos();
+    carregarMudancas();
+  }
 });
 
 async function iniciar() {

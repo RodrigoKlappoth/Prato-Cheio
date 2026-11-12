@@ -85,6 +85,11 @@ export function criarApp() {
 
   app.get('/api/ongs/pendentes', responder((req) => usuarios.listarOngsPendentes(req.usuario)));
 
+  // O rastro da mudança de cidade das contas de ONG aprovadas (H-11, ADR 0012).
+  // A lista é só de leitura: manter a aprovação ou recusar a conta continua
+  // sendo feito pelas duas rotas abaixo, que já existiam.
+  app.get('/api/ongs/mudancas-de-cidade', responder((req) => usuarios.listarOngsQueMudaramDeCidade(req.usuario)));
+
   app.post('/api/ongs/:id/aprovar', responder((req) => usuarios.avaliarOng(req.usuario, req.params.id, 'aprovada')));
 
   app.post('/api/ongs/:id/recusar', responder((req) => usuarios.avaliarOng(req.usuario, req.params.id, 'recusada')));
